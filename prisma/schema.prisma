@@ -1,8 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// FoodHub Database Schema
+// Using BetterAuth with Prisma Adapter
 
 generator client {
   provider = "prisma-client"
@@ -11,4 +8,206 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ========================================
+// ENUMS
+// ========================================
+
+enum Role {
+  CUSTOMER
+  PROVIDER
+  ADMIN
+}
+
+enum OrderStatus {
+  PLACED
+  PREPARING
+  READY
+  DELIVERED
+  CANCELLED
+}
+
+// ========================================
+// BETTER AUTH TABLES
+// ========================================
+
+model user {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  name          String
+  image         String?
+  role          Role      @default(CUSTOMER)
+  banned        Boolean?
+  banReason     String?
+  banExpires    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  sessions        session[]
+  accounts        account[]
+  providerProfile providerProfile?
+  orders          order[]
+  reviews         review[]
+}
+
+model session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user user @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model account {
+  id                    String    @id @default(cuid())
+  userId                String
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  idToken               String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user user @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+}
+
+model verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+}
+
+// ========================================
+// APPLICATION TABLES
+// ========================================
+
+model providerProfile {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  businessName String
+  description  String?
+  logo         String?
+  address      String?
+  phone        String?
+  cuisineType  String?
+  contactEmail String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  user  user   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meals meal[]
+
+  @@index([userId])
+}
+
+model category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  image       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  meals meal[]
+}
+
+model meal {
+  id                String   @id @default(cuid())
+  providerProfileId String
+  categoryId        String
+  name              String
+  description       String?
+  price             Float
+  image             String?
+  isAvailable       Boolean  @default(true)
+  preparationTime   Int?     // in minutes
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  providerProfile providerProfile @relation(fields: [providerProfileId], references: [id], onDelete: Cascade)
+  category        category        @relation(fields: [categoryId], references: [id])
+  orderItems      orderItem[]
+  reviews         review[]
+
+  @@index([providerProfileId])
+  @@index([categoryId])
+}
+
+model order {
+  id              String      @id @default(cuid())
+  customerId      String
+  status          OrderStatus @default(PLACED)
+  deliveryAddress String
+  deliveryNotes   String?
+  totalAmount     Float
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  customer   user        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  orderItems orderItem[]
+
+  @@index([customerId])
+  @@index([status])
+}
+
+model orderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  mealId    String
+  quantity  Int
+  unitPrice Float
+  createdAt DateTime @default(now())
+
+  // Relations
+  order order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  meal  meal  @relation(fields: [mealId], references: [id])
+
+  @@index([orderId])
+  @@index([mealId])
+}
+
+model review {
+  id        String   @id @default(cuid())
+  userId    String
+  mealId    String
+  rating    Int      // 1-5
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user user @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meal meal @relation(fields: [mealId], references: [id], onDelete: Cascade)
+
+  // One review per user per meal
+  @@unique([userId, mealId])
+  @@index([mealId])
 }

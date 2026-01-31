@@ -2,6 +2,7 @@ import { Router, IRouter } from "express";
 import providerRoutes from "./provider.routes";
 import mealRoutes from "./meal.routes";
 import orderRoutes from "./order.routes";
+import reviewRoutes from "./review.routes";
 
 const router: IRouter = Router();
 
@@ -19,11 +20,15 @@ router.use("/meals", mealRoutes);
 // Order routes - /api/orders/* (Customer)
 router.use("/orders", orderRoutes);
 
+// Review routes - /api/reviews/*
+router.use("/reviews", reviewRoutes);
+
 // Future routes will be added here:
-// router.use("/reviews", reviewRoutes);
 // router.use("/admin", adminRoutes);
 // router.use("/categories", categoryRoutes);
 // router.use("/providers", publicProviderRoutes);
 
 export default router;
+
+// Last updated: Commit 14 - Reviews System
 

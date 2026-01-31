@@ -1,10 +1,12 @@
 import { Router, IRouter } from "express";
 import * as providerController from "../controllers/provider.controller";
-import { requireAuth, requireProvider, validateBody } from "../middlewares";
+import * as mealController from "../controllers/meal.controller";
+import { requireAuth, requireProvider, validateBody, validateParams } from "../middlewares";
 import {
     createProviderProfileSchema,
     updateProviderProfileSchema,
 } from "../validations/provider.validation";
+import { createMealSchema, updateMealSchema, mealIdParamSchema } from "../validations/meal.validation";
 
 const router: IRouter = Router();
 
@@ -13,7 +15,10 @@ const router: IRouter = Router();
 // /api/provider/*
 // ═══════════════════════════════════════════════════════════
 
-// Protected routes - require authentication and provider role
+// ─────────────────────────────────────────────────────────────
+// PROFILE ROUTES
+// ─────────────────────────────────────────────────────────────
+
 router.get(
     "/profile",
     requireAuth,
@@ -37,4 +42,45 @@ router.put(
     providerController.updateMyProfile
 );
 
+// ─────────────────────────────────────────────────────────────
+// MEAL ROUTES (Provider's own meals)
+// ─────────────────────────────────────────────────────────────
+
+// Get provider's own meals
+router.get(
+    "/meals",
+    requireAuth,
+    requireProvider,
+    mealController.getMyMeals
+);
+
+// Create a new meal
+router.post(
+    "/meals",
+    requireAuth,
+    requireProvider,
+    validateBody(createMealSchema),
+    mealController.createMeal
+);
+
+// Update a meal
+router.put(
+    "/meals/:id",
+    requireAuth,
+    requireProvider,
+    validateParams(mealIdParamSchema),
+    validateBody(updateMealSchema),
+    mealController.updateMeal
+);
+
+// Delete a meal
+router.delete(
+    "/meals/:id",
+    requireAuth,
+    requireProvider,
+    validateParams(mealIdParamSchema),
+    mealController.deleteMeal
+);
+
 export default router;
+

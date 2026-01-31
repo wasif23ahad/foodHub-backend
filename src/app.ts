@@ -1,7 +1,9 @@
 import express, { Application, Request, Response, NextFunction } from "express";
 import cors from "cors";
 import morgan from "morgan";
+import { toNodeHandler } from "better-auth/node";
 import { config } from "./config";
+import { auth } from "./lib/auth";
 
 // Create Express app
 const app: Application = express();
@@ -24,9 +26,9 @@ if (config.nodeEnv === "development") {
     app.use(morgan("dev"));
 }
 
-// ======================
+// =====================================
 // HEALTH CHECK (before json middleware)
-// ======================
+// =====================================
 app.get("/health", (_req: Request, res: Response) => {
     res.status(200).json({
         success: true,
@@ -36,7 +38,13 @@ app.get("/health", (_req: Request, res: Response) => {
     });
 });
 
-// JSON body parser (after health check, before routes)
+// ========================================
+// BETTER AUTH HANDLER
+// Must be BEFORE express.json() middleware
+// ========================================
+app.all("/api/auth/*splat", toNodeHandler(auth));
+
+// JSON body parser (after BetterAuth, before other routes)
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

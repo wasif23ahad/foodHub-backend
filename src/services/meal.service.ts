@@ -49,7 +49,7 @@ export const createMeal = async (providerId: string, data: CreateMealInput) => {
  * Get all meals with optional filters (Public)
  */
 export const getMeals = async (query: MealQueryInput) => {
-    const { categoryId, providerId, search, minPrice, maxPrice, isAvailable, page, limit } = query;
+    const { categoryId, providerId, search, minPrice, maxPrice, isAvailable, sort, page, limit } = query;
 
     const where: Record<string, unknown> = {};
 
@@ -70,6 +70,25 @@ export const getMeals = async (query: MealQueryInput) => {
         if (maxPrice !== undefined) (where["price"] as Record<string, number>)["lte"] = maxPrice;
     }
 
+    // Determine sort order
+    let orderBy: Record<string, string> | Record<string, string>[] = { createdAt: "desc" };
+    switch (sort) {
+        case "price_asc":
+            orderBy = { price: "asc" };
+            break;
+        case "price_desc":
+            orderBy = { price: "desc" };
+            break;
+        case "oldest":
+            orderBy = { createdAt: "asc" };
+            break;
+        case "newest":
+        default:
+            orderBy = { createdAt: "desc" };
+            break;
+        // rating and popular will be handled separately after fetching
+    }
+
     const skip = (page - 1) * limit;
 
     const [meals, total] = await Promise.all([
@@ -84,16 +103,51 @@ export const getMeals = async (query: MealQueryInput) => {
                         },
                     },
                 },
+                _count: {
+                    select: { reviews: true, orderItems: true },
+                },
             },
-            orderBy: { createdAt: "desc" },
+            orderBy,
             skip,
             take: limit,
         }),
         prisma.meal.count({ where }),
     ]);
 
+    // Calculate average rating for each meal
+    const mealIds = meals.map((m) => m.id);
+    const ratings = await prisma.review.groupBy({
+        by: ["mealId"],
+        where: { mealId: { in: mealIds } },
+        _avg: { rating: true },
+        _count: true,
+    });
+
+    const ratingMap = ratings.reduce(
+        (acc, r) => {
+            acc[r.mealId] = { avgRating: r._avg.rating ?? 0, reviewCount: r._count };
+            return acc;
+        },
+        {} as Record<string, { avgRating: number; reviewCount: number }>
+    );
+
+    // Enhance meals with rating info
+    const enhancedMeals = meals.map((meal) => ({
+        ...meal,
+        avgRating: ratingMap[meal.id]?.avgRating ?? 0,
+        reviewCount: ratingMap[meal.id]?.reviewCount ?? 0,
+    }));
+
+    // Sort by rating or popularity if needed
+    let sortedMeals = enhancedMeals;
+    if (sort === "rating") {
+        sortedMeals = enhancedMeals.sort((a, b) => b.avgRating - a.avgRating);
+    } else if (sort === "popular") {
+        sortedMeals = enhancedMeals.sort((a, b) => b._count.orderItems - a._count.orderItems);
+    }
+
     return {
-        meals,
+        meals: sortedMeals,
         meta: {
             page,
             limit,
@@ -104,7 +158,7 @@ export const getMeals = async (query: MealQueryInput) => {
 };
 
 /**
- * Get meal by ID (Public)
+ * Get meal by ID with full details (Public)
  */
 export const getMealById = async (mealId: string) => {
     const meal = await prisma.meal.findUnique({
@@ -127,6 +181,9 @@ export const getMealById = async (mealId: string) => {
                 orderBy: { createdAt: "desc" },
                 take: 10,
             },
+            _count: {
+                select: { reviews: true, orderItems: true },
+            },
         },
     });
 
@@ -134,7 +191,19 @@ export const getMealById = async (mealId: string) => {
         throw new NotFoundError("Meal not found");
     }
 
-    return meal;
+    // Calculate average rating
+    const ratingStats = await prisma.review.aggregate({
+        where: { mealId },
+        _avg: { rating: true },
+        _count: true,
+    });
+
+    return {
+        ...meal,
+        avgRating: ratingStats._avg.rating ?? 0,
+        totalReviews: ratingStats._count,
+        totalOrders: meal._count.orderItems,
+    };
 };
 
 /**

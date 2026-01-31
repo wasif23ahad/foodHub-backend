@@ -42,5 +42,11 @@ process.on("SIGTERM", async () => {
     process.exit(0);
 });
 
-// Start the server
-startServer();
+// Start the server only in non-Vercel environment
+if (process.env["VERCEL"] !== "1") {
+    startServer();
+}
+
+// Export for Vercel serverless
+export default app;
+

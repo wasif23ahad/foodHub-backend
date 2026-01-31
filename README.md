@@ -25,7 +25,7 @@ A robust, scalable RESTful API for a food delivery platform built with modern te
 - [Error Handling](#-error-handling)
 - [Deployment](#-deployment)
 - [Admin Credentials](#-admin-credentials)
-- [License](#-license)
+
 
 ---
 

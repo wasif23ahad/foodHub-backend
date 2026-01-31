@@ -119,8 +119,9 @@ model providerProfile {
   updatedAt    DateTime @updatedAt
 
   // Relations
-  user  user   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  meals meal[]
+  user   user    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meals  meal[]
+  orders order[]
 
   @@index([userId])
 }
@@ -161,20 +162,23 @@ model meal {
 }
 
 model order {
-  id              String      @id @default(cuid())
-  customerId      String
-  status          OrderStatus @default(PLACED)
-  deliveryAddress String
-  deliveryNotes   String?
-  totalAmount     Float
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  id                String      @id @default(cuid())
+  customerId        String
+  providerProfileId String
+  status            OrderStatus @default(PLACED)
+  deliveryAddress   String
+  deliveryNotes     String?
+  totalAmount       Float
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
 
   // Relations
-  customer   user        @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  orderItems orderItem[]
+  customer        user            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  providerProfile providerProfile @relation(fields: [providerProfileId], references: [id], onDelete: Cascade)
+  orderItems      orderItem[]
 
   @@index([customerId])
+  @@index([providerProfileId])
   @@index([status])
 }
 

@@ -1,18 +1,17 @@
 {
     "version": 2,
     "installCommand": "pnpm install",
-    "buildCommand": "pnpm db:generate && pnpm build",
-    "outputDirectory": "dist",
-    "functions": {
-        "dist/server.js": {
-            "memory": 1024,
-            "maxDuration": 10
-        }
-    },
-    "rewrites": [
+    "buildCommand": "pnpm db:generate",
+    "builds": [
         {
-            "source": "/(.*)",
-            "destination": "/dist/server.js"
+            "src": "api/index.ts",
+            "use": "@vercel/node"
+        }
+    ],
+    "routes": [
+        {
+            "src": "/(.*)",
+            "dest": "/api"
         }
     ]
 }

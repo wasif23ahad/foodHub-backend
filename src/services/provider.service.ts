@@ -115,11 +115,11 @@ export const updateProfile = async (userId: string, data: UpdateProviderProfileI
 };
 
 /**
- * Get provider profile by ID (public)
+ * Get provider profile by ID with full details (public)
  */
 export const getProfileById = async (profileId: string) => {
     const profile = await prisma.providerProfile.findUnique({
-        where: { id: profileId },
+        where: { id: profileId, isActive: true },
         include: {
             user: {
                 select: {
@@ -132,7 +132,14 @@ export const getProfileById = async (profileId: string) => {
                 where: { isAvailable: true },
                 include: {
                     category: true,
+                    _count: {
+                        select: { reviews: true, orderItems: true },
+                    },
                 },
+                orderBy: { createdAt: "desc" },
+            },
+            _count: {
+                select: { meals: true, orders: true },
             },
         },
     });
@@ -141,29 +148,132 @@ export const getProfileById = async (profileId: string) => {
         throw new NotFoundError("Provider not found");
     }
 
-    return profile;
+    // Calculate average rating across all meals
+    const mealIds = profile.meals.map((m) => m.id);
+    const ratingStats = await prisma.review.aggregate({
+        where: { mealId: { in: mealIds } },
+        _avg: { rating: true },
+        _count: true,
+    });
+
+    return {
+        ...profile,
+        avgRating: ratingStats._avg.rating ?? 0,
+        totalReviews: ratingStats._count,
+    };
+};
+
+// Provider query input type
+type ProviderQueryInput = {
+    search?: string;
+    cuisineType?: string;
+    page: number;
+    limit: number;
 };
 
 /**
- * Get all active providers
+ * Get all active providers with filters (public)
  */
-export const getAllProviders = async () => {
-    const providers = await prisma.providerProfile.findMany({
-        where: { isActive: true },
-        include: {
-            user: {
-                select: {
-                    id: true,
-                    name: true,
-                    image: true,
+export const getAllProviders = async (query: ProviderQueryInput) => {
+    const { search, cuisineType, page, limit } = query;
+
+    const where: Record<string, unknown> = { isActive: true };
+
+    if (cuisineType) {
+        where["cuisineType"] = { contains: cuisineType, mode: "insensitive" };
+    }
+
+    if (search) {
+        where["OR"] = [
+            { businessName: { contains: search, mode: "insensitive" } },
+            { description: { contains: search, mode: "insensitive" } },
+            { cuisineType: { contains: search, mode: "insensitive" } },
+        ];
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [providers, total] = await Promise.all([
+        prisma.providerProfile.findMany({
+            where,
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        image: true,
+                    },
+                },
+                _count: {
+                    select: { meals: true, orders: true },
                 },
             },
-            _count: {
-                select: { meals: true },
-            },
-        },
-        orderBy: { createdAt: "desc" },
+            orderBy: { createdAt: "desc" },
+            skip,
+            take: limit,
+        }),
+        prisma.providerProfile.count({ where }),
+    ]);
+
+    // Calculate average ratings for each provider
+    const providerIds = providers.map((p) => p.id);
+    const mealsByProvider = await prisma.meal.findMany({
+        where: { providerProfileId: { in: providerIds } },
+        select: { id: true, providerProfileId: true },
     });
 
-    return providers;
+    const mealIdsByProvider: Record<string, string[]> = {};
+    mealsByProvider.forEach((m) => {
+        if (!mealIdsByProvider[m.providerProfileId]) {
+            mealIdsByProvider[m.providerProfileId] = [];
+        }
+        mealIdsByProvider[m.providerProfileId]!.push(m.id);
+    });
+
+    const allMealIds = mealsByProvider.map((m) => m.id);
+    const ratings = await prisma.review.groupBy({
+        by: ["mealId"],
+        where: { mealId: { in: allMealIds } },
+        _avg: { rating: true },
+        _count: true,
+    });
+
+    // Map ratings to providers
+    const mealToRating: Record<string, { avg: number; count: number }> = {};
+    ratings.forEach((r) => {
+        mealToRating[r.mealId] = { avg: r._avg.rating ?? 0, count: r._count };
+    });
+
+    const enhancedProviders = providers.map((provider) => {
+        const providerMealIds = mealIdsByProvider[provider.id] || [];
+        let totalRating = 0;
+        let totalReviews = 0;
+
+        providerMealIds.forEach((mealId) => {
+            const rating = mealToRating[mealId];
+            if (rating) {
+                totalRating += rating.avg * rating.count;
+                totalReviews += rating.count;
+            }
+        });
+
+        const avgRating = totalReviews > 0 ? totalRating / totalReviews : 0;
+
+        return {
+            ...provider,
+            avgRating: Math.round(avgRating * 10) / 10,
+            totalReviews,
+        };
+    });
+
+    return {
+        providers: enhancedProviders,
+        meta: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit),
+        },
+    };
 };
+

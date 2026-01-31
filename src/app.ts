@@ -6,6 +6,7 @@ import { config } from "./config";
 import { auth } from "./lib/auth";
 import { errorHandler } from "./middlewares";
 import { sendNotFound } from "./utils";
+import routes from "./routes";
 
 // Create Express app
 const app: Application = express();
@@ -53,8 +54,7 @@ app.use(express.urlencoded({ extended: true }));
 // ======================
 // API ROUTES
 // ======================
-// Routes will be added here
-// app.use("/api", routes);
+app.use("/api", routes);
 
 // ======================
 // 404 HANDLER

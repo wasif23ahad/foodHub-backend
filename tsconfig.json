@@ -2,7 +2,7 @@
   // Visit https://aka.ms/tsconfig to read more about this file
   "compilerOptions": {
     // File Layout
-    // "rootDir": "./src",
+    // "rootDir": "./src", // Disabled - Prisma generates files outside src
     "outDir": "./dist",
     // Environment Settings
     // See also https://aka.ms/tsconfig/module
@@ -41,12 +41,12 @@
     "esModuleInterop": true,
   },
   "include": [
-    "src/**/*",
-    "prisma/**/*",
-    "generated/**/*"
+    "src/**/*"
   ],
   "exclude": [
     "node_modules",
-    "dist"
+    "dist",
+    "prisma",
+    "generated"
   ]
 }

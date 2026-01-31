@@ -87,12 +87,16 @@ export const getProviderById = async (
  * Get all providers (public)
  */
 export const getAllProviders = async (
-    _req: Request,
+    req: Request,
     res: Response,
     next: NextFunction
 ): Promise<void> => {
     try {
-        const providers = await providerService.getAllProviders();
+        const query = res.locals["validatedQuery"] || {
+            page: 1,
+            limit: 20,
+        };
+        const providers = await providerService.getAllProviders(query);
         sendSuccess(res, providers, "Providers fetched successfully");
     } catch (error) {
         next(error);

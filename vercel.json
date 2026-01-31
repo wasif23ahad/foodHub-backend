@@ -1,13 +1,15 @@
 {
     "version": 2,
-    "framework": null,
-    "installCommand": "pnpm install",
-    "buildCommand": "pnpm db:generate && pnpm build",
-    "outputDirectory": "dist",
+    "builds": [
+        {
+            "src": "dist/server.js",
+            "use": "@vercel/node"
+        }
+    ],
     "routes": [
         {
             "src": "/(.*)",
-            "dest": "/server.js"
+            "dest": "dist/server.js"
         }
     ]
 }

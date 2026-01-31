@@ -4,11 +4,6 @@
     "installCommand": "pnpm install && pnpm db:generate",
     "buildCommand": "pnpm build",
     "outputDirectory": "dist",
-    "functions": {
-        "dist/server.js": {
-            "runtime": "nodejs20.x"
-        }
-    },
     "rewrites": [
         {
             "source": "/(.*)",

@@ -1,13 +1,15 @@
 import "dotenv/config";
 import prisma from "../src/lib/prisma";
 import { Role } from "../generated/prisma/enums";
+import { auth } from "../src/lib/auth";
 
 async function main() {
     console.log("🌱 Starting seed...");
 
-    // 1. Create Admin User
+    // 1. Create Admin User with proper password hashing
     const adminEmail = process.env["ADMIN_EMAIL"] ?? "admin@foodhub.com";
     const adminPassword = process.env["ADMIN_PASSWORD"] ?? "admin123";
+    const adminName = process.env["ADMIN_NAME"] ?? "Admin";
 
     // Check if admin exists
     const existingAdmin = await prisma.user.findUnique({
@@ -15,19 +17,33 @@ async function main() {
     });
 
     if (!existingAdmin) {
-        // Note: In production, BetterAuth handles password hashing
-        // For seed, we create the user record directly
-        // You'll need to use BetterAuth's signUp to properly hash password
-        const admin = await prisma.user.create({
-            data: {
-                email: adminEmail,
-                name: "Admin",
-                role: Role.ADMIN,
-                emailVerified: true,
-            },
-        });
-        console.log(`✅ Admin user created: ${admin.email}`);
-        console.log(`   ⚠️  Note: Use BetterAuth signup endpoint to set password properly`);
+        try {
+            // Use BetterAuth's API to create user with properly hashed password
+            // Note: Role cannot be set during signup, so we create user first then update role
+            const result = await auth.api.signUpEmail({
+                body: {
+                    email: adminEmail,
+                    password: adminPassword,
+                    name: adminName,
+                },
+            });
+
+            if (result.user) {
+                // Update the role to ADMIN after user is created
+                await prisma.user.update({
+                    where: { id: result.user.id },
+                    data: {
+                        role: Role.ADMIN,
+                        emailVerified: true,
+                    },
+                });
+                console.log(`✅ Admin user created: ${adminEmail}`);
+                console.log(`   📧 Email: ${adminEmail}`);
+                console.log(`   🔑 Password: ${adminPassword}`);
+            }
+        } catch (error: any) {
+            console.error(`❌ Failed to create admin:`, error.message || error);
+        }
     } else {
         console.log(`ℹ️  Admin user already exists: ${existingAdmin.email}`);
     }
@@ -44,6 +60,8 @@ async function main() {
         { name: "Desserts", description: "Sweet treats and desserts" },
         { name: "Beverages", description: "Drinks and refreshments" },
         { name: "Breakfast", description: "Morning meals and brunch items" },
+        { name: "Deshi", description: "Traditional Bengali and Bangladeshi cuisine" },
+        { name: "Kababs", description: "Grilled meat specialties and kebabs" },
     ];
 
     for (const category of categories) {

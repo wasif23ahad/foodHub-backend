@@ -6,7 +6,7 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc",
+    "build": "tsup src/server.ts --format esm --outDir dist --clean",
     "start": "node dist/server.js",
     "db:migrate": "npx prisma migrate dev",
     "db:push": "npx prisma db push",
@@ -25,6 +25,7 @@
     "@types/node": "^25.1.0",
     "@types/pg": "^8.16.0",
     "prisma": "^7.3.0",
+    "tsup": "^8.5.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },

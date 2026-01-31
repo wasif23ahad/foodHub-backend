@@ -17,7 +17,7 @@ export const validate = (
     schema: ZodSchema,
     options: ValidateOptions = { target: "body" }
 ) => {
-    return (req: Request, _res: Response, next: NextFunction): void => {
+    return (req: Request, res: Response, next: NextFunction): void => {
         try {
             const target = options.target || "body";
             const dataToValidate = req[target];
@@ -40,8 +40,14 @@ export const validate = (
                 throw new ValidationError(errors);
             }
 
-            // Replace request data with validated/transformed data
-            req[target] = result.data;
+            // Store validated data appropriately
+            // body can be replaced, query/params are read-only in Express 5
+            if (target === "body") {
+                req.body = result.data;
+            } else {
+                // Store in res.locals for query/params (read-only properties)
+                res.locals["validated" + target.charAt(0).toUpperCase() + target.slice(1)] = result.data;
+            }
 
             next();
         } catch (error) {
@@ -69,3 +75,4 @@ export const validate = (
 export const validateBody = (schema: ZodSchema) => validate(schema, { target: "body" });
 export const validateQuery = (schema: ZodSchema) => validate(schema, { target: "query" });
 export const validateParams = (schema: ZodSchema) => validate(schema, { target: "params" });
+

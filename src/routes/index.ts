@@ -6,6 +6,7 @@ import reviewRoutes from "./review.routes";
 import adminRoutes from "./admin.routes";
 import categoryRoutes from "./category.routes";
 import publicProviderRoutes from "./public-provider.routes";
+import userRoutes from "./user.routes";
 
 const router: IRouter = Router();
 
@@ -13,6 +14,9 @@ const router: IRouter = Router();
 // API ROUTES
 // All routes are prefixed with /api
 // ═══════════════════════════════════════════════════════════
+
+// User routes - /api/user/* (Authenticated users)
+router.use("/user", userRoutes);
 
 // Provider routes - /api/provider/* (Authenticated providers)
 router.use("/provider", providerRoutes);
@@ -37,5 +41,5 @@ router.use("/providers", publicProviderRoutes);
 
 export default router;
 
-// Last updated: Commit 19 - Public Providers API
+// Last updated: Commit 20 - Polish & Documentation
 

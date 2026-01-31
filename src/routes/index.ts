@@ -5,6 +5,7 @@ import orderRoutes from "./order.routes";
 import reviewRoutes from "./review.routes";
 import adminRoutes from "./admin.routes";
 import categoryRoutes from "./category.routes";
+import publicProviderRoutes from "./public-provider.routes";
 
 const router: IRouter = Router();
 
@@ -13,7 +14,7 @@ const router: IRouter = Router();
 // All routes are prefixed with /api
 // ═══════════════════════════════════════════════════════════
 
-// Provider routes - /api/provider/*
+// Provider routes - /api/provider/* (Authenticated providers)
 router.use("/provider", providerRoutes);
 
 // Meal routes - /api/meals/* (Public)
@@ -31,10 +32,10 @@ router.use("/admin", adminRoutes);
 // Category routes - /api/categories/* (Public)
 router.use("/categories", categoryRoutes);
 
-// Future routes will be added here:
-// router.use("/providers", publicProviderRoutes);
+// Public provider routes - /api/providers/* (Public)
+router.use("/providers", publicProviderRoutes);
 
 export default router;
 
-// Last updated: Commit 16 - Category Management
+// Last updated: Commit 19 - Public Providers API
 

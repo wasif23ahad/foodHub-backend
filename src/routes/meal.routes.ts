@@ -1,7 +1,9 @@
 import { Router, IRouter } from "express";
 import * as mealController from "../controllers/meal.controller";
-import { requireAuth, requireProvider, validateBody, validateQuery, validateParams } from "../middlewares";
-import { createMealSchema, updateMealSchema, mealQuerySchema, mealIdParamSchema } from "../validations/meal.validation";
+import * as reviewController from "../controllers/review.controller";
+import { validateQuery, validateParams } from "../middlewares";
+import { mealQuerySchema, mealIdParamSchema } from "../validations/meal.validation";
+import { reviewQuerySchema, mealIdParamSchema as reviewMealIdParamSchema } from "../validations/review.validation";
 
 const router: IRouter = Router();
 
@@ -24,4 +26,13 @@ router.get(
     mealController.getMealById
 );
 
+// Get reviews for a specific meal (Public)
+router.get(
+    "/:mealId/reviews",
+    validateParams(reviewMealIdParamSchema),
+    validateQuery(reviewQuerySchema),
+    reviewController.getMealReviews
+);
+
 export default router;
+

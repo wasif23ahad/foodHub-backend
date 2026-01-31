@@ -6,9 +6,9 @@
     "outDir": "./dist",
     // Environment Settings
     // See also https://aka.ms/tsconfig/module
-    "module": "ESNext",
-    "moduleResolution": "node",
-    "target": "ES2023",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2022",
     "types": [
       "node"
     ],

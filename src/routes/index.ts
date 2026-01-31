@@ -4,6 +4,7 @@ import mealRoutes from "./meal.routes";
 import orderRoutes from "./order.routes";
 import reviewRoutes from "./review.routes";
 import adminRoutes from "./admin.routes";
+import categoryRoutes from "./category.routes";
 
 const router: IRouter = Router();
 
@@ -27,11 +28,13 @@ router.use("/reviews", reviewRoutes);
 // Admin routes - /api/admin/* (Admin only)
 router.use("/admin", adminRoutes);
 
+// Category routes - /api/categories/* (Public)
+router.use("/categories", categoryRoutes);
+
 // Future routes will be added here:
-// router.use("/categories", categoryRoutes);
 // router.use("/providers", publicProviderRoutes);
 
 export default router;
 
-// Last updated: Commit 15 - Admin User Management
+// Last updated: Commit 16 - Category Management
 

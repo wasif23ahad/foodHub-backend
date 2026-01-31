@@ -1,9 +1,11 @@
-import express, { Application, Request, Response, NextFunction } from "express";
+import express, { Application, Request, Response } from "express";
 import cors from "cors";
 import morgan from "morgan";
 import { toNodeHandler } from "better-auth/node";
 import { config } from "./config";
 import { auth } from "./lib/auth";
+import { errorHandler } from "./middlewares";
+import { sendNotFound } from "./utils";
 
 // Create Express app
 const app: Application = express();
@@ -58,21 +60,13 @@ app.use(express.urlencoded({ extended: true }));
 // 404 HANDLER
 // ======================
 app.use((_req: Request, res: Response) => {
-    res.status(404).json({
-        success: false,
-        message: "Route not found",
-    });
+    sendNotFound(res, "Route not found");
 });
 
 // ======================
 // GLOBAL ERROR HANDLER
 // ======================
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-    console.error("Error:", err.message);
-    res.status(500).json({
-        success: false,
-        message: config.nodeEnv === "development" ? err.message : "Internal server error",
-    });
-});
+app.use(errorHandler);
 
 export default app;
+

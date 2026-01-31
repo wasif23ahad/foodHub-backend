@@ -1,5 +1,7 @@
 {
     "version": 2,
+    "installCommand": "pnpm install",
+    "buildCommand": "pnpm db:generate",
     "builds": [
         {
             "src": "src/server.ts",
@@ -11,8 +13,5 @@
             "src": "/(.*)",
             "dest": "src/server.ts"
         }
-    ],
-    "env": {
-        "NODE_ENV": "production"
-    }
+    ]
 }

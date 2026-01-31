@@ -3,6 +3,7 @@ import providerRoutes from "./provider.routes";
 import mealRoutes from "./meal.routes";
 import orderRoutes from "./order.routes";
 import reviewRoutes from "./review.routes";
+import adminRoutes from "./admin.routes";
 
 const router: IRouter = Router();
 
@@ -23,12 +24,14 @@ router.use("/orders", orderRoutes);
 // Review routes - /api/reviews/*
 router.use("/reviews", reviewRoutes);
 
+// Admin routes - /api/admin/* (Admin only)
+router.use("/admin", adminRoutes);
+
 // Future routes will be added here:
-// router.use("/admin", adminRoutes);
 // router.use("/categories", categoryRoutes);
 // router.use("/providers", publicProviderRoutes);
 
 export default router;
 
-// Last updated: Commit 14 - Reviews System
+// Last updated: Commit 15 - Admin User Management
 

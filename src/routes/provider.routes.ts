@@ -1,12 +1,14 @@
 import { Router, IRouter } from "express";
 import * as providerController from "../controllers/provider.controller";
 import * as mealController from "../controllers/meal.controller";
-import { requireAuth, requireProvider, validateBody, validateParams } from "../middlewares";
+import * as orderController from "../controllers/order.controller";
+import { requireAuth, requireProvider, validateBody, validateQuery, validateParams } from "../middlewares";
 import {
     createProviderProfileSchema,
     updateProviderProfileSchema,
 } from "../validations/provider.validation";
 import { createMealSchema, updateMealSchema, mealIdParamSchema } from "../validations/meal.validation";
+import { orderQuerySchema, orderIdParamSchema, updateOrderStatusSchema } from "../validations/order.validation";
 
 const router: IRouter = Router();
 
@@ -82,5 +84,38 @@ router.delete(
     mealController.deleteMeal
 );
 
+// ─────────────────────────────────────────────────────────────
+// ORDER ROUTES (Provider's received orders)
+// ─────────────────────────────────────────────────────────────
+
+// Get provider's orders
+router.get(
+    "/orders",
+    requireAuth,
+    requireProvider,
+    validateQuery(orderQuerySchema),
+    orderController.getProviderOrders
+);
+
+// Get specific order details
+router.get(
+    "/orders/:id",
+    requireAuth,
+    requireProvider,
+    validateParams(orderIdParamSchema),
+    orderController.getProviderOrderById
+);
+
+// Update order status
+router.patch(
+    "/orders/:id/status",
+    requireAuth,
+    requireProvider,
+    validateParams(orderIdParamSchema),
+    validateBody(updateOrderStatusSchema),
+    orderController.updateOrderStatus
+);
+
 export default router;
+
 

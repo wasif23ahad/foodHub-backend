@@ -1,5 +1,6 @@
 import { Router, IRouter } from "express";
 import * as adminController from "../controllers/admin.controller";
+import * as categoryController from "../controllers/category.controller";
 import { requireAuth, requireAdmin, validateBody, validateQuery, validateParams } from "../middlewares";
 import {
     userListQuerySchema,
@@ -7,6 +8,11 @@ import {
     userIdParamSchema,
     adminOrderQuerySchema,
 } from "../validations/admin.validation";
+import {
+    createCategorySchema,
+    updateCategorySchema,
+    categoryIdParamSchema,
+} from "../validations/category.validation";
 
 const router: IRouter = Router();
 
@@ -61,6 +67,32 @@ router.get(
     "/orders",
     validateQuery(adminOrderQuerySchema),
     adminController.getAllOrders
+);
+
+// ─────────────────────────────────────────────────────────────
+// CATEGORY MANAGEMENT
+// ─────────────────────────────────────────────────────────────
+
+// Create a new category
+router.post(
+    "/categories",
+    validateBody(createCategorySchema),
+    categoryController.createCategory
+);
+
+// Update a category
+router.put(
+    "/categories/:id",
+    validateParams(categoryIdParamSchema),
+    validateBody(updateCategorySchema),
+    categoryController.updateCategory
+);
+
+// Delete a category
+router.delete(
+    "/categories/:id",
+    validateParams(categoryIdParamSchema),
+    categoryController.deleteCategory
 );
 
 export default router;

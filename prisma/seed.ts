@@ -54,13 +54,26 @@ async function main() {
     ];
 
     const categoryMap = new Map<string, string>();
+    const categoryImages: Record<string, string> = {
+        "Deshi": "beef-kala-bhuna.jpg",
+        "Biriyani": "kacchi-biriyani.jpg",
+        "Kababs": "sheek-kabab.jpg",
+        "Pizza & Italian": "margherita-pizza.jpg",
+        "Burgers & Fast Food": "classic-cheeseburger.jpg",
+        "Healthy & Salads": "greek-salad.jpg",
+        "Breakfast": "full-english-breakfast.jpg",
+        "Desserts": "gulab-jamun.jpg",
+        "Naan": "butter-naan.jpg",
+        "Nihari": "nihari-special.jpg",
+        "Beverages": "lacchi.jpg"
+    };
+
     for (const cat of categories) {
         const created = await prisma.category.create({
             data: {
                 name: cat.name,
                 description: `Best ${cat.name} in town.`,
-                // Currently looking for category images flat in 'uploads/meals' as fallback
-                image: `http://127.0.0.1:5000/uploads/meals/${cat.folder}.jpg`
+                image: `http://127.0.0.1:5000/uploads/meals/${categoryImages[cat.name] || "beef-kala-bhuna.jpg"}`
             }
         });
         categoryMap.set(cat.name, created.id);

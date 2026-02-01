@@ -7,6 +7,11 @@ import { auth } from "./lib/auth";
 import { errorHandler } from "./middlewares";
 import { sendNotFound } from "./utils";
 import routes from "./routes";
+import { fileURLToPath } from "url";
+import path from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Create Express app
 const app: Application = express();
@@ -25,9 +30,7 @@ app.use(
 );
 
 // Serve Static Files (Uploads)
-// Access via: http://127.0.0.1:5000/uploads/filename.ext
-import path from "path";
-const uploadsPath = path.join(process.cwd(), "src/uploads"); // Matches your actual folder location
+const uploadsPath = path.join(__dirname, "uploads");
 app.use("/uploads", express.static(uploadsPath));
 console.log("📁 Serving static files from:", uploadsPath);
 

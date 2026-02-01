@@ -18,7 +18,7 @@ const app: Application = express();
 // CORS - Allow frontend to communicate with backend
 app.use(
     cors({
-        origin: config.frontendUrl,
+        origin: true,
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         credentials: true, // Allow cookies for BetterAuth sessions
     })

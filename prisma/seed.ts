@@ -3,229 +3,232 @@ import prisma from "../src/lib/prisma";
 import { auth } from "../src/lib/auth";
 
 async function main() {
-    console.log("🌱 Starting seed...");
+    console.log("🌱 Starting comprehensive seed...");
 
-    // 1. Create Admin User with proper password hashing
-    const adminEmail = process.env["ADMIN_EMAIL"] ?? "admin@foodhub.com";
-    const adminPassword = process.env["ADMIN_PASSWORD"] ?? "admin123";
-    const adminName = process.env["ADMIN_NAME"] ?? "Admin";
+    // 1. Create Admin User
+    const adminEmail = "admin@foodhub.com";
+    const adminPassword = "admin123";
+    const adminName = "FoodHub Admin";
 
-    // Check if admin exists
-    const existingAdmin = await prisma.user.findUnique({
-        where: { email: adminEmail },
-    });
-
-    if (!existingAdmin) {
+    let adminUser = await prisma.user.findUnique({ where: { email: adminEmail } });
+    if (!adminUser) {
         try {
-            // Use BetterAuth's API to create user with properly hashed password
-            // Note: Role cannot be set during signup, so we create user first then update role
             const result = await auth.api.signUpEmail({
-                body: {
-                    email: adminEmail,
-                    password: adminPassword,
-                    name: adminName,
-                },
+                body: { email: adminEmail, password: adminPassword, name: adminName },
             });
-
             if (result.user) {
-                // Update the role to ADMIN after user is created
-                await prisma.user.update({
+                adminUser = await prisma.user.update({
                     where: { id: result.user.id },
-                    data: {
-                        role: "ADMIN",
-                        emailVerified: true,
-                    },
+                    data: { role: "ADMIN", emailVerified: true }
                 });
                 console.log(`✅ Admin user created: ${adminEmail}`);
-                console.log(`   📧 Email: ${adminEmail}`);
-                console.log(`   🔑 Password: ${adminPassword}`);
-            }
-        } catch (error: any) {
-            console.error(`❌ Failed to create admin:`, error.message || error);
-        }
-    } else {
-        console.log(`ℹ️  Admin user already exists: ${existingAdmin.email}`);
-    }
-
-    // 2. Create/Get Provider User & Profile
-    const providerEmail = "provider@foodhub.com";
-    const providerPassword = "provider123";
-    const providerName = "Fresh Foods Provider";
-
-    let providerUser = await prisma.user.findUnique({ where: { email: providerEmail } });
-    if (!providerUser) {
-        try {
-            const result = await auth.api.signUpEmail({
-                body: {
-                    email: providerEmail,
-                    password: providerPassword,
-                    name: providerName,
-                },
-            });
-            if (result.user) {
-                providerUser = await prisma.user.update({
-                    where: { id: result.user.id },
-                    data: { role: "PROVIDER", emailVerified: true }
-                });
-                console.log(`✅ Provider user created: ${providerEmail}`);
             }
         } catch (e) {
-            console.error("Failed to create provider:", e);
-        }
-    } else {
-        console.log(`ℹ️  Provider user already exists: ${providerEmail}`);
-    }
-
-    if (!providerUser) throw new Error("Could not ensure provider user exists");
-
-    const providerProfile = await prisma.providerProfile.upsert({
-        where: { userId: providerUser.id },
-        update: {},
-        create: {
-            userId: providerUser.id,
-            businessName: "Fresh Foods Kitchen",
-            cuisineType: "Multi-Cuisine",
-            description: "Serving fresh and delicious meals across all categories.",
-            address: "123 Food Street, Culinary City",
-            contactEmail: providerEmail
-        }
-    });
-    console.log(`✅ Provider profile ready: ${providerProfile.businessName}`);
-
-    // 3. Align Categories
-    // Define the exact mapping required by frontend
-    const requiredCategories = [
-        { name: "Italian", mapping: "Asian Cuisine" }, // Example of potential rename logic if needed strictly, but here we just list target names
-        { name: "Asian" },
-        { name: "Burgers" },
-        { name: "Healthy" },
-        { name: "Breakfast" },
-        { name: "Salads" },
-        { name: "Desserts" },
-        { name: "Deshi" },
-        { name: "Biriyani" },
-        { name: "Kababs" },
-        { name: "Naan" },
-        // Extras that might exist or be good to have
-        { name: "Fast Food" },
-        { name: "Pizza" }, // "Pizza" maps to Italian usually but frontend requested "Italian" explicitly. Keeping Pizza as separate if needed or requested, but user said "Italian -> Pizza Icon". Wait, user said "Italian -> Pizza Icon".
-        // The user list: Italian, Asian, Burgers, Healthy, Breakfast, Salads, Desserts, Deshi, Biriyani, Kababs, Naan.
-    ];
-
-    // Specific renaming map to clean up old data if it exists
-    const renames: Record<string, string> = {
-        "Asian Cuisine": "Asian",
-    };
-
-    for (const [oldName, newName] of Object.entries(renames)) {
-        const oldCat = await prisma.category.findUnique({ where: { name: oldName } });
-        if (oldCat) {
-            // Check if new name already exists
-            const targetCat = await prisma.category.findUnique({ where: { name: newName } });
-            if (targetCat) {
-                // If both exist, we might want to move meals to new CAtegory and delete old, OR just delete old if no meals.
-                // For safety in this task, let's just delete the OLD one if it has no meals, or warn. 
-                // Simpler: Just update the name if the new name doesn't exist.
-                console.log(`⚠️ Cannot rename '${oldName}' to '${newName}' because '${newName}' already exists. skipping rename.`);
-            } else {
-                await prisma.category.update({
-                    where: { id: oldCat.id },
-                    data: { name: newName }
-                });
-                console.log(`🔄 Renamed category '${oldName}' to '${newName}'`);
-            }
+            console.error("Failed to create admin:", e);
         }
     }
 
-    // Upsert all required categories
-    const categoryMap = new Map<string, string>(); // Name -> ID
-
+    // 2. Ensure Categories
     const categoryList = [
-        "Italian", "Asian", "Burgers", "Healthy", "Breakfast", "Salads", "Desserts", "Deshi", "Biriyani", "Kababs", "Naan", "Pizza", "Fast Food"
+        "Deshi", "Biriyani", "Kababs", "Italian", "Pizza", "Asian", "Burgers",
+        "Fast Food", "Healthy", "Salads", "Breakfast", "Desserts", "Naan"
     ];
+    const categoryMap = new Map<string, string>();
 
     for (const name of categoryList) {
         const cat = await prisma.category.upsert({
             where: { name },
             update: {},
-            create: { name, description: `Delicious ${name} options` }
+            create: { name, description: `Authentic ${name} dishes and flavors.` }
         });
         categoryMap.set(name, cat.id);
-        console.log(`✅ Category ensured: ${name}`);
     }
+    console.log(`✅ ${categoryList.length} categories ensured.`);
 
-    // 4. Seed Meals
-    // We need 3-4 meals for the requested categories
+    // 3. Create 30+ Providers
+    const providersToSeed = [
+        { name: "Old Dhaka Kitchen", cuisine: "Deshi", desc: "Specializes in authentic Old Dhaka Tehari and Biriyani.", img: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd" },
+        { name: "Sylhet Spice House", cuisine: "Deshi", desc: "Authentic Sylheti flavors including Shatkora curry.", img: "https://images.unsplash.com/photo-1613292443284-8d10eff93b98" },
+        { name: "Chittagong Mezban Haat", cuisine: "Deshi", desc: "Traditional Chittagonian Mezban beef experts.", img: "https://images.unsplash.com/photo-1601050690597-df0568f70950" },
+        { name: "The Pizza Press", cuisine: "Pizza", desc: "Hand-tossed artisanal pizzas with fresh toppings.", img: "https://images.unsplash.com/photo-1574071318508-1cdbab80d002" },
+        { name: "Burger Bastion", cuisine: "Burgers", desc: "Gourmet beef and chicken burgers.", img: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd" },
+        { name: "Asian Fusion", cuisine: "Asian", desc: "A blend of Sushi, Ramen, and Thai favorites.", img: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624" },
+        { name: "Healthy Harvest", cuisine: "Healthy", desc: "Nutrient-rich salads and quinoa bowls.", img: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd" },
+        { name: "Morning Dew Cafe", cuisine: "Breakfast", desc: "Start your day with our signature breakfast platters.", img: "https://images.unsplash.com/photo-1533089862017-a0db5d742961" },
+        { name: "Sweet Tooth Delights", cuisine: "Desserts", desc: "Traditional and modern sweets/cakes.", img: "https://images.unsplash.com/photo-1578985545062-69928b1d9587" },
+        { name: "Kabab Kingdom", cuisine: "Kababs", desc: "The ultimate destination for grilled meat lovers.", img: "https://images.unsplash.com/photo-1599487488170-d11ec9c172f0" },
+        { name: "Naan Stop", cuisine: "Naan", desc: "Freshly baked tandoori breads of all kinds.", img: "https://images.unsplash.com/photo-1626074353765-517a681e40be" },
+        { name: "The Pasta Parlor", cuisine: "Italian", desc: "Creamy and authentic Italian pasta dishes.", img: "https://images.unsplash.com/photo-1612874742237-6526221588e3" },
+        { name: "Deshi Tadka", cuisine: "Deshi", desc: "Daily home-cooked Bengali meals.", img: "https://images.unsplash.com/photo-1601050690597-df0568f70950" },
+        { name: "Coastal Catch", cuisine: "Deshi", desc: "Fresh seafood delicacies from the Bay of Bengal.", img: "https://images.unsplash.com/photo-1613292443284-8d10eff93b98" },
+        { name: "Dhaka Dhaba", cuisine: "Fast Food", desc: "Popular street foods like Fuchka and Chotpoti.", img: "https://images.unsplash.com/photo-1550547660-d9450f859349" },
+        { name: "Green Leaf Vegan", cuisine: "Healthy", desc: "100% plant-based healthy meals.", img: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd" },
+        { name: "Sultanic Biriyani", cuisine: "Biriyani", desc: "Premium Kacchi Biriyani specialists.", img: "https://images.unsplash.com/photo-1642821373181-696a54913e93" },
+        { name: "Mughal Empire", cuisine: "Deshi", desc: "Rich royal flavors from the Mughal era.", img: "https://images.unsplash.com/photo-1626777552726-4a6b54c97e46" },
+        { name: "Grill & Chill", cuisine: "Kababs", desc: "Perfectly grilled BBQ and Tandoori.", img: "https://images.unsplash.com/photo-1599487488170-d11ec9c172f0" },
+        { name: "The Dessert Bar", cuisine: "Desserts", desc: "Cakes, pastries, and premium ice creams.", img: "https://images.unsplash.com/photo-1524351199678-c41985b90ec2" },
+        { name: "Noodle Nest", cuisine: "Asian", desc: "Expertly prepared Pad Thai and Ramen.", img: "https://images.unsplash.com/photo-1559314809-0d155014e29e" },
+        { name: "Steak House Elite", cuisine: "Burgers", desc: "Premium cuts and juicy burgers.", img: "https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5" },
+        { name: "Organic Orchard", cuisine: "Healthy", desc: "Fresh fruit bowls and organic snacks.", img: "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe" },
+        { name: "Bake Master", cuisine: "Naan", desc: "Aromatic and soft tandoori breads.", img: "https://images.unsplash.com/photo-1626074353765-517a681e40be" },
+        { name: "Curry Corner", cuisine: "Deshi", desc: "Quick and spicy daily curry bowls.", img: "https://images.unsplash.com/photo-1601050690597-df0568f70950" },
+        { name: "Village Flavors", cuisine: "Deshi", desc: "Traditional rural Bengali cuisine.", img: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd" },
+        { name: "The Soup Spoon", cuisine: "Asian", desc: "Comforting soups and appetizers.", img: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624" },
+        { name: "Prawn Paradise", cuisine: "Deshi", desc: "Specialists in prawn and shrimp dishes.", img: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8" },
+        { name: "Royal Rezala", cuisine: "Deshi", desc: "Focused on premium Mutton and Beef Rezala.", img: "https://images.unsplash.com/photo-1626777552726-4a6b54c97e46" },
+        { name: "Elite Sweets", cuisine: "Desserts", desc: "High-end Bengali sweets and desserts.", img: "https://images.unsplash.com/photo-1578985545062-69928b1d9587" },
+        { name: "Bhorta Bary", cuisine: "Deshi", desc: "Authentic Bengali mashed delicacies (Bhortas).", img: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd" },
+    ];
+
+    const providerProfiles = [];
+
+    for (const p of providersToSeed) {
+        const email = `${p.name.toLowerCase().replace(/\s+/g, ".")}@foodhub.com`;
+        let user = await prisma.user.findUnique({ where: { email } });
+
+        if (!user) {
+            try {
+                const result = await auth.api.signUpEmail({
+                    body: { email, password: "password123", name: p.name },
+                });
+                if (result.user) {
+                    user = await prisma.user.update({
+                        where: { id: result.user.id },
+                        data: { role: "PROVIDER", emailVerified: true }
+                    });
+                }
+            } catch (e) {
+                console.error(`Failed to create provider user ${p.name}:`, e);
+                continue;
+            }
+        }
+
+        if (user) {
+            const profile = await prisma.providerProfile.upsert({
+                where: { userId: user.id },
+                update: {
+                    businessName: p.name,
+                    description: p.desc,
+                    logo: p.img,
+                    cuisineType: p.cuisine,
+                    isActive: true
+                },
+                create: {
+                    userId: user.id,
+                    businessName: p.name,
+                    description: p.desc,
+                    logo: p.img,
+                    cuisineType: p.cuisine,
+                    isActive: true,
+                    address: "Local Delivery Center"
+                }
+            });
+            providerProfiles.push(profile);
+        }
+    }
+    console.log(`✅ ${providerProfiles.length} provider profiles ensured.`);
+
+    // 4. Create 50+ Meals
     const mealsToSeed = [
-        // Italian (Pizza Icon) - Seeding Pizzas/Pastas
-        { name: "Margherita Pizza", category: "Italian", price: 12.99, image: "https://images.unsplash.com/photo-1574071318508-1cdbab80d002", description: "Classic tomato and mozzarella pizza" },
-        { name: "Pepperoni Feast", category: "Italian", price: 14.99, image: "https://images.unsplash.com/photo-1628840042765-356cda07504e", description: "Spicy pepperoni with extra cheese" },
-        { name: "Pasta Carbonara", category: "Italian", price: 11.50, image: "https://images.unsplash.com/photo-1612874742237-6526221588e3", description: "Creamy pasta with pancetta" },
+        // Deshi (High Priority)
+        { name: "Beef Kala Bhuna", category: "Deshi", price: 450, image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd", description: "Slow-cooked tender beef with authentic spices." },
+        { name: "Shorshe Ilish", category: "Deshi", price: 550, image: "https://images.unsplash.com/photo-1613292443284-8d10eff93b98", description: "Hilsa fish cooked in a pungent mustard gravy." },
+        { name: "Chingri Malai Curry", category: "Deshi", price: 650, image: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8", description: "Creamy coconut milk prawn curry." },
+        { name: "Mutton Rezala", category: "Deshi", price: 480, image: "https://images.unsplash.com/photo-1626777552726-4a6b54c97e46", description: "Rich, white mutton curry with yogurt and nuts." },
+        { name: "Bhuna Khichuri", category: "Deshi", price: 320, image: "https://images.unsplash.com/photo-1601050690597-df0568f70950", description: "Aromatic rice and lentil mix with beef/mutton." },
+        { name: "Morog Polao", category: "Deshi", price: 380, image: "https://images.unsplash.com/photo-1642821373181-696a54913e93", description: "Traditional chicken and aromatic rice dish." },
+        { name: "Old Dhaka Tehari", category: "Deshi", price: 300, image: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8", description: "Spicy beef tehari cooked with mustard oil." },
+        { name: "Beef Bhuna", category: "Deshi", price: 350, image: "https://images.unsplash.com/photo-1601050690597-df0568f70950", description: "Thick, spicy beef gravy." },
+        { name: "Rui Fish Curry", category: "Deshi", price: 280, image: "https://images.unsplash.com/photo-1613292443284-8d10eff93b98", description: "Classic Bengali fish curry with potatoes." },
+        { name: "Shutki Bhuna", category: "Deshi", price: 250, image: "https://images.unsplash.com/photo-1601050690597-df0568f70950", description: "Spicy dried fish delicacy." },
+        { name: "Aloo Bhorta", category: "Deshi", price: 50, image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd", description: "Traditional mashed potatoes with mustard oil and chilies." },
+        { name: "Baingan Bharta", category: "Deshi", price: 80, image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd", description: "Fire-roasted mashed eggplant." },
+        { name: "Duck Bhuna", category: "Deshi", price: 550, image: "https://images.unsplash.com/photo-1601050690597-df0568f70950", description: "Spicy duck curry, a winter favorite." },
+        { name: "Vegetable Labra", category: "Deshi", price: 120, image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd", description: "Mixed vegetable cooked in Bengali style." },
+        { name: "Panta Ilish", category: "Deshi", price: 400, image: "https://images.unsplash.com/photo-1613292443284-8d10eff93b98", description: "Traditional Boishakhi meal." },
+        { name: "Nihari with Kulcha", category: "Deshi", price: 350, image: "https://images.unsplash.com/photo-1601050690597-df0568f70950", description: "Slow-cooked beef shank stew." },
 
-        // Asian (Soup Icon)
-        { name: "Ramen Bowl", category: "Asian", price: 10.99, image: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624", description: "Hot miso ramen with soft egg" },
-        { name: "Sushi Platter", category: "Asian", price: 18.99, image: "https://images.unsplash.com/photo-1579871494447-9811cf80d66c", description: "Fresh salmon and tuna sushi rolls" },
-        { name: "Pad Thai", category: "Asian", price: 11.99, image: "https://images.unsplash.com/photo-1559314809-0d155014e29e", description: "Stir-fried rice noodle dish" },
+        // Biriyani
+        { name: "Mutton Kacchi Biriyani", category: "Biriyani", price: 550, image: "https://images.unsplash.com/photo-1642821373181-696a54913e93", description: "Raw mutton layered with basmati rice." },
+        { name: "Chicken Biriyani", category: "Biriyani", price: 350, image: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8", description: "Classic aromatic chicken biriyani." },
+        { name: "Beef Biriyani", category: "Biriyani", price: 420, image: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8", description: "Flavorful beef and rice blend." },
+        { name: "Vegetable Biriyani", category: "Biriyani", price: 250, image: "https://images.unsplash.com/photo-1633945274405-b6c8069047b0", description: "Fragrant rice with mixed vegetables." },
 
-        // Burgers (Beef Icon)
-        { name: "Classic Cheeseburger", category: "Burgers", price: 9.99, image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd", description: "Juicy beef patty with cheddar cheese" },
-        { name: "Double Bacon Burger", category: "Burgers", price: 12.99, image: "https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5", description: "Double beef with crispy bacon" },
-        { name: "Veggie Delight", category: "Burgers", price: 8.99, image: "https://images.unsplash.com/photo-1550547660-d9450f859349", description: "Plant-based burger with fresh veggies" },
+        // Kababs
+        { name: "Seekh Kabab", category: "Kababs", price: 280, image: "https://images.unsplash.com/photo-1599487488170-d11ec9c172f0", description: "Minced meat skewers grilled to perfection." },
+        { name: "Chicken Tikka", category: "Kababs", price: 250, image: "https://images.unsplash.com/photo-1599487488170-d11ec9c172f0", description: "Spiced and grilled chicken chunks." },
+        { name: "Reshmi Kabab", category: "Kababs", price: 300, image: "https://images.unsplash.com/photo-1603894584373-5ac82b2ae398", description: "Creamy and soft chicken kababs." },
+        { name: "Shami Kabab", category: "Kababs", price: 200, image: "https://images.unsplash.com/photo-1599487488170-d11ec9c172f0", description: "Fried lentil and meat patties." },
+        { name: "Boti Kabab", category: "Kababs", price: 320, image: "https://images.unsplash.com/photo-1599487488170-d11ec9c172f0", description: "Marinated grilled meat pieces." },
+        { name: "Tandoori Chicken", category: "Kababs", price: 350, image: "https://images.unsplash.com/photo-1599487488170-d11ec9c172f0", description: "Whole chicken marinated and grilled." },
 
-        // Healthy (Carrot Icon)
-        { name: "Quinoa Salad Bowl", category: "Healthy", price: 10.50, image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd", description: "Nutrient-packed quinoa and greens" },
-        { name: "Grilled Chicken Breast", category: "Healthy", price: 13.99, image: "https://images.unsplash.com/photo-1532550907401-a500c9a57435", description: "Lean chicken with steamed vegetables" },
-        { name: "Avocado Toast", category: "Healthy", price: 8.50, image: "https://images.unsplash.com/photo-1541519227354-08fa5d50c44d", description: "Whole grain toast with fresh avocado" },
+        // Italian & Pizza
+        { name: "Margherita Pizza", category: "Pizza", price: 650, image: "https://images.unsplash.com/photo-1574071318508-1cdbab80d002", description: "Classic tomato and mozzarella." },
+        { name: "Pepperoni Feast", category: "Pizza", price: 850, image: "https://images.unsplash.com/photo-1628840042765-356cda07504e", description: "Loaded with spicy pepperoni." },
+        { name: "Pasta Carbonara", category: "Italian", price: 450, image: "https://images.unsplash.com/photo-1612874742237-6526221588e3", description: "Creamy Italian pasta." },
+        { name: "Lasagna", category: "Italian", price: 750, image: "https://images.unsplash.com/photo-1612874742237-6526221588e3", description: "Layered pasta with meat sauce and cheese." },
+        { name: "BBQ Chicken Pizza", category: "Pizza", price: 800, image: "https://images.unsplash.com/photo-1628840042765-356cda07504e", description: "Smoky chicken with BBQ sauce." },
 
-        // Breakfast (Coffee Icon)
-        { name: "Full English Breakfast", category: "Breakfast", price: 11.99, image: "https://images.unsplash.com/photo-1533089862017-a0db5d742961", description: "Eggs, bacon, sausages, and beans" },
-        { name: "Pancakes Stack", category: "Breakfast", price: 9.50, image: "https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445", description: "Fluffy pancakes with maple syrup" },
-        { name: "Oatmeal Bowl", category: "Breakfast", price: 6.99, image: "https://images.unsplash.com/photo-1517673132405-a56a62b18caf", description: "Warm oatmeal with berries and honey" },
+        // Burgers & Fast Food
+        { name: "Classic Cheeseburger", category: "Burgers", price: 350, image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd", description: "Juicy beef patty with cheddar." },
+        { name: "Double Bacon Burger", category: "Burgers", price: 450, image: "https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5", description: "For the ultimate meat lover." },
+        { name: "Crispy Chicken Burger", category: "Burgers", price: 320, image: "https://images.unsplash.com/photo-1550547660-d9450f859349", description: "Crunchy fried chicken fillet." },
+        { name: "Chicken Nuggets", category: "Fast Food", price: 250, image: "https://images.unsplash.com/photo-1550547660-d9450f859349", description: "Crispy bite-sized chicken (10pcs)." },
+        { name: "French Fries", category: "Fast Food", price: 150, image: "https://images.unsplash.com/photo-1550547660-d9450f859349", description: "Golden and crispy large portion." },
 
-        // Salads (Salad Icon)
-        { name: "Caesar Salad", category: "Salads", price: 9.99, image: "https://images.unsplash.com/photo-1546793665-c74683f339c1", description: "Crisp romaine with parmesan" },
-        { name: "Greek Salad", category: "Salads", price: 10.50, image: "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe", description: "Feta, olives, and fresh cucumber" },
-        { name: "Cobb Salad", category: "Salads", price: 11.99, image: "https://images.unsplash.com/photo-1515543237350-b3eea1ec8082", description: "Classic mix of greens and protein" },
+        // Asian
+        { name: "Ramen Bowl", category: "Asian", price: 450, image: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624", description: "Authentic miso ramen with toppings." },
+        { name: "Sushi Platter", category: "Asian", price: 1200, image: "https://images.unsplash.com/photo-1579871494447-9811cf80d66c", description: "Assorted fresh sushi rolls." },
+        { name: "Pad Thai", category: "Asian", price: 420, image: "https://images.unsplash.com/photo-1559314809-0d155014e29e", description: "Classic Thai stir-fried noodles." },
+        { name: "Kung Pao Chicken", category: "Asian", price: 400, image: "https://images.unsplash.com/photo-1559314809-0d155014e29e", description: "Spicy Szechuan style chicken." },
+        { name: "Dim Sum Platter", category: "Asian", price: 500, image: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624", description: "Variety of steamed dumplings." },
 
-        // Desserts (Desserts Icon)
-        { name: "Chocolate Cake", category: "Desserts", price: 6.50, image: "https://images.unsplash.com/photo-1578985545062-69928b1d9587", description: "Rich and moist chocolate slice" },
-        { name: "Cheesecake", category: "Desserts", price: 7.00, image: "https://images.unsplash.com/photo-1524351199678-c41985b90ec2", description: "Creamy classic New York cheesecake" },
-        { name: "Ice Cream Sundae", category: "Desserts", price: 5.99, image: "https://images.unsplash.com/photo-1563805042-7684c019e1cb", description: "Vanilla scoops with hot fudge" },
+        // Healthy & Salads
+        { name: "Quinoa Salad Bowl", category: "Healthy", price: 350, image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd", description: "Nutrient-rich greens and quinoa." },
+        { name: "Caesar Salad", category: "Salads", price: 300, image: "https://images.unsplash.com/photo-1546793665-c74683f339c1", description: "Classic romaine with caesar dressing." },
+        { name: "Greek Salad", category: "Salads", price: 320, image: "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe", description: "Feta, olives, and fresh cucumber." },
+        { name: "Avocado Toast", category: "Healthy", price: 250, image: "https://images.unsplash.com/photo-1541519227354-08fa5d50c44d", description: "Modern healthy breakfast choice." },
 
-        // Deshi (Deshi Icon)
-        { name: "Beef Bhuna", category: "Deshi", price: 12.99, image: "https://images.unsplash.com/photo-1601050690597-df0568f70950", description: "Spicy slow-cooked beef curry" },
-        { name: "Fish Curry", category: "Deshi", price: 11.50, image: "https://images.unsplash.com/photo-1613292443284-8d10eff93b98", description: "Traditional fish prepared in spicy sauce" },
-        { name: "Chicken Roast", category: "Deshi", price: 10.99, image: "https://images.unsplash.com/photo-1626777552726-4a6b54c97e46", description: "Roast chicken with traditional spices" },
+        // Breakfast
+        { name: "Full English Breakfast", category: "Breakfast", price: 450, image: "https://images.unsplash.com/photo-1533089862017-a0db5d742961", description: "Eggs, beans, sausages, and more." },
+        { name: "Pancakes Stack", category: "Breakfast", price: 320, image: "https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445", description: "Fluffy pancakes with syrup." },
 
-        // Biriyani (Biriyani Icon)
-        { name: "Chicken Biriyani", category: "Biriyani", price: 13.99, image: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8", description: "Aromatic basmati rice with chicken" },
-        { name: "Mutton Biriyani", category: "Biriyani", price: 15.99, image: "https://images.unsplash.com/photo-1642821373181-696a54913e93", description: "Classic Kacchi style mutton biriyani" },
-        { name: "Veg Biriyani", category: "Biriyani", price: 10.99, image: "https://images.unsplash.com/photo-1633945274405-b6c8069047b0", description: "Flavorful vegetable rice dish" },
+        // Desserts
+        { name: "Gulab Jamun", category: "Desserts", price: 150, image: "https://images.unsplash.com/photo-1578985545062-69928b1d9587", description: "Sweet milk-based balls in syrup (4pcs)." },
+        { name: "Rasmalai", category: "Desserts", price: 200, image: "https://images.unsplash.com/photo-1524351199678-c41985b90ec2", description: "Soft paneer balls in thickened sweet milk." },
+        { name: "Kulfi", category: "Desserts", price: 100, image: "https://images.unsplash.com/photo-1563805042-7684c019e1cb", description: "Traditional frozen dairy dessert." },
+        { name: "Chocolate Cake", category: "Desserts", price: 180, image: "https://images.unsplash.com/photo-1578985545062-69928b1d9587", description: "Decadent chocolate dessert." },
+        { name: "Cheesecake", category: "Desserts", price: 250, image: "https://images.unsplash.com/photo-1524351199678-c41985b90ec2", description: "Creamy New York style cheesecake." },
 
-        // Kababs (Kababs Icon)
-        { name: "Seekh Kabab", category: "Kababs", price: 8.99, image: "https://images.unsplash.com/photo-1599487488170-d11ec9c172f0", description: "Minced meat grilled skewers" },
-        { name: "Chicken Tikka", category: "Kababs", price: 9.50, image: "https://images.unsplash.com/photo-1599487488170-d11ec9c172f0", description: "Marinated grilled chicken chunks" }, // Resuing image
-        { name: "Reshmi Kabab", category: "Kababs", price: 10.50, image: "https://images.unsplash.com/photo-1603894584373-5ac82b2ae398", description: "Silky texture chicken kababs" },
-
-        // Naan (Naan Icon)
-        { name: "Butter Naan", category: "Naan", price: 2.50, image: "https://images.unsplash.com/photo-1626074353765-517a681e40be", description: "Soft fluffy bread with butter" },
-        { name: "Garlic Naan", category: "Naan", price: 3.00, image: "https://images.unsplash.com/photo-1626074353765-517a681e40be", description: "Naan topped with minced garlic" },
-        { name: "Cheese Naan", category: "Naan", price: 3.50, image: "https://images.unsplash.com/photo-1626074353765-517a681e40be", description: "Stuffed with melting cheese" }
+        // Naan
+        { name: "Butter Naan", category: "Naan", price: 60, image: "https://images.unsplash.com/photo-1626074353765-517a681e40be", description: "Soft flatbread with butter." },
+        { name: "Garlic Naan", category: "Naan", price: 80, image: "https://images.unsplash.com/photo-1626074353765-517a681e40be", description: "Naan topped with aromatic garlic." },
+        { name: "Cheese Naan", category: "Naan", price: 100, image: "https://images.unsplash.com/photo-1626074353765-517a681e40be", description: "Naan stuffed with gooey cheese." }
     ];
 
     let mealsCreated = 0;
     for (const meal of mealsToSeed) {
         const catId = categoryMap.get(meal.category);
-        if (!catId) {
-            console.warn(`⚠️ Skipped meal '${meal.name}' because category '${meal.category}' was not found.`);
-            continue;
+        if (!catId) continue;
+
+        // Try to find a provider that matches the cuisine type, or pick one randomly
+        let matchedProvider = providerProfiles.find(p => p.cuisineType === meal.category);
+        if (!matchedProvider) {
+            // Fallbacks for general categories
+            if (meal.category === "Pizza" || meal.category === "Italian") {
+                matchedProvider = providerProfiles.find(p => p.cuisineType === "Italian" || p.cuisineType === "Pizza");
+            } else if (meal.category === "Biriyani" || meal.category === "Kababs") {
+                matchedProvider = providerProfiles.find(p => p.cuisineType === "Deshi" || p.cuisineType === "Biriyani" || p.cuisineType === "Kababs");
+            }
         }
 
+        // If still no match, pick a random provider
+        const finalProvider = matchedProvider || providerProfiles[Math.floor(Math.random() * providerProfiles.length)];
+
+        if (!finalProvider) continue;
+
         const existingMeal = await prisma.meal.findFirst({
-            where: {
-                name: meal.name,
-                providerProfileId: providerProfile.id
-            }
+            where: { name: meal.name, providerProfileId: finalProvider.id }
         });
 
         if (!existingMeal) {
@@ -236,7 +239,7 @@ async function main() {
                     price: meal.price,
                     image: meal.image,
                     categoryId: catId,
-                    providerProfileId: providerProfile.id,
+                    providerProfileId: finalProvider.id,
                     isAvailable: true,
                     preparationTime: 20
                 }
@@ -244,7 +247,7 @@ async function main() {
             mealsCreated++;
         }
     }
-    console.log(`✅ Seeded ${mealsCreated} new meals.`);
+    console.log(`✅ ${mealsCreated} new meals seeded.`);
 
     console.log("\n🎉 Seed completed successfully!");
 }

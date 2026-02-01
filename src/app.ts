@@ -24,6 +24,11 @@ app.use(
     })
 );
 
+// Serve Static Files (Uploads)
+// Access via: http://localhost:5000/uploads/filename.ext
+import path from "path";
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+
 // Request logging (dev mode only)
 if (config.nodeEnv === "development") {
     app.use(morgan("dev"));

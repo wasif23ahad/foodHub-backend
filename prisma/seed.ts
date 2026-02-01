@@ -1,6 +1,5 @@
 import "dotenv/config";
 import prisma from "../src/lib/prisma";
-import { Role } from "../generated/prisma/client";
 import { auth } from "../src/lib/auth";
 
 async function main() {
@@ -33,7 +32,7 @@ async function main() {
                 await prisma.user.update({
                     where: { id: result.user.id },
                     data: {
-                        role: Role.ADMIN,
+                        role: "ADMIN",
                         emailVerified: true,
                     },
                 });
@@ -66,7 +65,7 @@ async function main() {
             if (result.user) {
                 providerUser = await prisma.user.update({
                     where: { id: result.user.id },
-                    data: { role: Role.PROVIDER, emailVerified: true }
+                    data: { role: "PROVIDER", emailVerified: true }
                 });
                 console.log(`✅ Provider user created: ${providerEmail}`);
             }

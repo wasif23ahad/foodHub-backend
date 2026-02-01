@@ -11,6 +11,25 @@ import "../types";
 // ═══════════════════════════════════════════════════════════
 
 /**
+ * POST /api/orders/:id/reviews
+ * Rate an entire order (creates reviews for all items)
+ */
+export const createOrderReview = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> => {
+    try {
+        const userId = req.user!.id;
+        const orderId = req.params["id"] as string;
+        const result = await reviewService.createOrderReview(userId, orderId, req.body);
+        sendCreated(res, result, "Order rated successfully");
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
  * POST /api/reviews
  * Create a new review
  */

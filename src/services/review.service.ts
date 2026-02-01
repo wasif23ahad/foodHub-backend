@@ -8,6 +8,60 @@ import type { CreateReviewInput, UpdateReviewInput, ReviewQueryInput } from "../
 // ═══════════════════════════════════════════════════════════
 
 /**
+ * Create batch reviews for an order
+ * Creates a review for each meal in the order
+ */
+export const createOrderReview = async (
+    userId: string,
+    orderId: string,
+    data: { rating: number; comment?: string }
+) => {
+    // 1. Get the order
+    const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: {
+            orderItems: true,
+        },
+    });
+
+    if (!order) {
+        throw new NotFoundError("Order not found");
+    }
+
+    // 2. Verify ownership
+    if (order.customerId !== userId) {
+        throw new ForbiddenError("You can only rate your own orders");
+    }
+
+    // 3. Create reviews for each meal
+    const reviews = await Promise.all(
+        order.orderItems.map(async (item) => {
+            // Upsert: Create if new, update if exists (in case they rate again)
+            return prisma.review.upsert({
+                where: {
+                    userId_mealId: {
+                        userId,
+                        mealId: item.mealId,
+                    },
+                },
+                update: {
+                    rating: data.rating,
+                    comment: data.comment ?? null,
+                },
+                create: {
+                    userId,
+                    mealId: item.mealId,
+                    rating: data.rating,
+                    comment: data.comment ?? null,
+                },
+            });
+        })
+    );
+
+    return { message: "Reviews submitted successfully", count: reviews.length };
+};
+
+/**
  * Create a review for a meal
  */
 export const createReview = async (userId: string, data: CreateReviewInput) => {

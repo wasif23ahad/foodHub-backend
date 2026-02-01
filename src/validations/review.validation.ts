@@ -15,6 +15,16 @@ export const createReviewSchema = z.object({
     comment: z.string().max(1000, "Comment is too long").optional(),
 });
 
+// Create order review schema (for rating an entire order)
+export const createOrderReviewSchema = z.object({
+    rating: z
+        .number()
+        .int("Rating must be an integer")
+        .min(1, "Rating must be at least 1")
+        .max(5, "Rating cannot exceed 5"),
+    comment: z.string().max(1000, "Comment is too long").optional(),
+});
+
 // Update review schema
 export const updateReviewSchema = z.object({
     rating: z
@@ -44,5 +54,6 @@ export const reviewQuerySchema = z.object({
 
 // Types inferred from schemas
 export type CreateReviewInput = z.infer<typeof createReviewSchema>;
+export type CreateOrderReviewInput = z.infer<typeof createOrderReviewSchema>;
 export type UpdateReviewInput = z.infer<typeof updateReviewSchema>;
 export type ReviewQueryInput = z.infer<typeof reviewQuerySchema>;

@@ -35,7 +35,17 @@ router.get(
     "/:id",
     requireAuth,
     validateParams(orderIdParamSchema),
+    validateParams(orderIdParamSchema),
     orderController.getCustomerOrderById
+);
+
+// Rate an order
+router.post(
+    "/:id/reviews",
+    requireAuth,
+    validateParams(orderIdParamSchema),
+    validateBody(require("../validations/review.validation").createOrderReviewSchema),
+    require("../controllers/review.controller").createOrderReview
 );
 
 export default router;

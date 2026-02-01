@@ -15,6 +15,10 @@ export const config = {
     // CORS
     frontendUrl: process.env["FRONTEND_URL"] ?? "http://localhost:3000",
 
+    // Google Auth
+    googleClientId: process.env["GOOGLE_CLIENT_ID"],
+    googleClientSecret: process.env["GOOGLE_CLIENT_SECRET"],
+
     // Admin Seed
     adminEmail: process.env["ADMIN_EMAIL"] ?? "admin@foodhub.com",
     adminPassword: process.env["ADMIN_PASSWORD"] ?? "admin123",

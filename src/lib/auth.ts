@@ -32,6 +32,16 @@ export const auth = betterAuth({
     },
 
     // ======================
+    // SOCIAL PROVIDERS
+    // ======================
+    socialProviders: {
+        google: {
+            clientId: config.googleClientId || "",
+            clientSecret: config.googleClientSecret || "",
+        },
+    },
+
+    // ======================
     // USER CONFIGURATION
     // ======================
     user: {

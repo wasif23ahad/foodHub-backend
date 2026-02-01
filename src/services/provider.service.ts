@@ -118,7 +118,7 @@ export const updateProfile = async (userId: string, data: UpdateProviderProfileI
  * Get provider profile by ID with full details (public)
  */
 export const getProfileById = async (profileId: string) => {
-    const profile = await prisma.providerProfile.findUnique({
+    const profile = await prisma.providerProfile.findFirst({
         where: { id: profileId, isActive: true },
         include: {
             user: {
@@ -158,6 +158,14 @@ export const getProfileById = async (profileId: string) => {
 
     return {
         ...profile,
+        meals: profile.meals.map((m) => ({
+            ...m,
+            providerProfile: {
+                businessName: profile.businessName,
+                id: profile.id,
+                logo: profile.logo
+            }
+        })),
         avgRating: ratingStats._avg.rating ?? 0,
         totalReviews: ratingStats._count,
     };
@@ -175,7 +183,9 @@ type ProviderQueryInput = {
  * Get all active providers with filters (public)
  */
 export const getAllProviders = async (query: ProviderQueryInput) => {
-    const { search, cuisineType, page, limit } = query;
+    const { search, cuisineType } = query;
+    const pageNum = Number(query.page) || 1;
+    const limitNum = Number(query.limit) || 10;
 
     const where: Record<string, unknown> = { isActive: true };
 
@@ -191,7 +201,7 @@ export const getAllProviders = async (query: ProviderQueryInput) => {
         ];
     }
 
-    const skip = (page - 1) * limit;
+    const skip = (pageNum - 1) * limitNum;
 
     const [providers, total] = await Promise.all([
         prisma.providerProfile.findMany({
@@ -210,7 +220,7 @@ export const getAllProviders = async (query: ProviderQueryInput) => {
             },
             orderBy: { createdAt: "desc" },
             skip,
-            take: limit,
+            take: limitNum,
         }),
         prisma.providerProfile.count({ where }),
     ]);
@@ -235,13 +245,13 @@ export const getAllProviders = async (query: ProviderQueryInput) => {
         by: ["mealId"],
         where: { mealId: { in: allMealIds } },
         _avg: { rating: true },
-        _count: true,
+        _count: { _all: true },
     });
 
     // Map ratings to providers
     const mealToRating: Record<string, { avg: number; count: number }> = {};
     ratings.forEach((r) => {
-        mealToRating[r.mealId] = { avg: r._avg.rating ?? 0, count: r._count };
+        mealToRating[r.mealId] = { avg: r._avg.rating ?? 0, count: r._count._all };
     });
 
     const enhancedProviders = providers.map((provider) => {
@@ -269,10 +279,10 @@ export const getAllProviders = async (query: ProviderQueryInput) => {
     return {
         providers: enhancedProviders,
         meta: {
-            page,
-            limit,
+            page: pageNum,
+            limit: limitNum,
             total,
-            totalPages: Math.ceil(total / limit),
+            totalPages: Math.ceil(total / limitNum),
         },
     };
 };

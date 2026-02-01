@@ -59,7 +59,8 @@ async function main() {
             data: {
                 name: cat.name,
                 description: `Best ${cat.name} in town.`,
-                image: `http://localhost:5000/uploads/categories/${cat.folder}.jpg`
+                // Currently looking for category images flat in 'uploads/meals' as fallback
+                image: `http://127.0.0.1:5000/uploads/meals/${cat.folder}.jpg`
             }
         });
         categoryMap.set(cat.name, created.id);
@@ -104,7 +105,7 @@ async function main() {
                     userId: user.id,
                     businessName: p.name,
                     description: p.desc,
-                    logo: `http://localhost:5000/uploads/providers/${p.img}`,
+                    logo: `http://127.0.0.1:5000/uploads/providers/${p.img}`,
                     cuisineType: p.cuisine,
                     isActive: true,
                     address: "Local Delivery Center"
@@ -132,6 +133,7 @@ async function main() {
             { name: "Begun Bhorta", price: 80, img: "begun-bhorta.jpg" },
             { name: "Hash Bhuna", price: 550, img: "hash-bhuna.jpg" },
             { name: "Panta Ilish", price: 400, img: "panta-ilish.jpg" },
+            { name: "Vegetable Labra", price: 120, img: "vegetable-labra.jpg" },
         ],
         "Nihari": [
             { name: "Nihari Special", price: 450, img: "nihari-special.jpg" },
@@ -210,7 +212,7 @@ async function main() {
                     name: m.name,
                     description: `Delicious ${m.name} freshly prepared.`,
                     price: m.price,
-                    image: `http://localhost:5000/uploads/meals/${folder}/${m.img}`,
+                    image: `http://127.0.0.1:5000/uploads/meals/${m.img}`,
                     categoryId: catId,
                     providerProfileId: provider.id,
                     isAvailable: true,

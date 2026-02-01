@@ -25,9 +25,11 @@ app.use(
 );
 
 // Serve Static Files (Uploads)
-// Access via: http://localhost:5000/uploads/filename.ext
+// Access via: http://127.0.0.1:5000/uploads/filename.ext
 import path from "path";
-app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+const uploadsPath = path.join(process.cwd(), "src/uploads"); // Matches your actual folder location
+app.use("/uploads", express.static(uploadsPath));
+console.log("📁 Serving static files from:", uploadsPath);
 
 // Request logging (dev mode only)
 if (config.nodeEnv === "development") {

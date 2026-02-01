@@ -83,7 +83,9 @@ async function main() {
     const providerProfiles = [];
 
     for (const p of providersToSeed) {
-        const email = `${p.name.toLowerCase().replace(/\s+/g, ".")}@foodhub.com`;
+        // Strip special characters like '&' and spaces, then lowercase
+        const safeName = p.name.toLowerCase().replace(/[^a-z.\s]/g, "").replace(/\s+/g, ".");
+        const email = `${safeName}@foodhub.com`;
         let user = await prisma.user.findUnique({ where: { email } });
 
         if (!user) {

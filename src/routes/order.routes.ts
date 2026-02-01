@@ -6,6 +6,8 @@ import {
     orderQuerySchema,
     orderIdParamSchema,
 } from "../validations/order.validation";
+import { createOrderReviewSchema } from "../validations/review.validation";
+import * as reviewController from "../controllers/review.controller";
 
 const router: IRouter = Router();
 
@@ -35,7 +37,6 @@ router.get(
     "/:id",
     requireAuth,
     validateParams(orderIdParamSchema),
-    validateParams(orderIdParamSchema),
     orderController.getCustomerOrderById
 );
 
@@ -44,8 +45,8 @@ router.post(
     "/:id/reviews",
     requireAuth,
     validateParams(orderIdParamSchema),
-    validateBody(require("../validations/review.validation").createOrderReviewSchema),
-    require("../controllers/review.controller").createOrderReview
+    validateBody(createOrderReviewSchema),
+    reviewController.createOrderReview
 );
 
 export default router;

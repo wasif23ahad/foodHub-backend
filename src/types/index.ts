@@ -1,4 +1,4 @@
-import { Role } from "../../generated/prisma/client";
+import { Role } from "@prisma/client";
 
 // ═══════════════════════════════════════════════════════════
 // EXTEND EXPRESS REQUEST TYPE

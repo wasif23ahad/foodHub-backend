@@ -73,7 +73,7 @@ async function main() {
             data: {
                 name: cat.name,
                 description: `Best ${cat.name} in town.`,
-                image: `http://127.0.0.1:5000/uploads/meals/${categoryImages[cat.name] || "beef-kala-bhuna.jpg"}`
+                image: null
             }
         });
         categoryMap.set(cat.name, created.id);
@@ -118,7 +118,7 @@ async function main() {
                     userId: user.id,
                     businessName: p.name,
                     description: p.desc,
-                    logo: `http://127.0.0.1:5000/uploads/providers/${p.img}`,
+                    logo: null,
                     cuisineType: p.cuisine,
                     isActive: true,
                     address: "Local Delivery Center"
@@ -225,7 +225,7 @@ async function main() {
                     name: m.name,
                     description: `Delicious ${m.name} freshly prepared.`,
                     price: m.price,
-                    image: `http://127.0.0.1:5000/uploads/meals/${m.img}`,
+                    image: null,
                     categoryId: catId,
                     providerProfileId: provider.id,
                     isAvailable: true,

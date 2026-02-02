@@ -20,6 +20,8 @@ export const getProfile = async (userId: string) => {
             image: true,
             role: true,
             emailVerified: true,
+            address: true,
+            phone: true,
             createdAt: true,
             _count: {
                 select: {
@@ -52,6 +54,8 @@ export const updateProfile = async (userId: string, data: UpdateProfileInput) =>
     const updateData: Record<string, unknown> = {};
     if (data.name !== undefined) updateData["name"] = data.name;
     if (data.image !== undefined) updateData["image"] = data.image;
+    if (data.address !== undefined) updateData["address"] = data.address;
+    if (data.phone !== undefined) updateData["phone"] = data.phone;
 
     const updatedUser = await prisma.user.update({
         where: { id: userId },
@@ -63,6 +67,8 @@ export const updateProfile = async (userId: string, data: UpdateProfileInput) =>
             image: true,
             role: true,
             emailVerified: true,
+            address: true,
+            phone: true,
             createdAt: true,
             updatedAt: true,
         },

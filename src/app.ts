@@ -30,7 +30,7 @@ app.use(
 );
 
 // Serve Static Files (Uploads)
-const uploadsPath = path.join(__dirname, "uploads");
+const uploadsPath = path.join(process.cwd(), "uploads");
 app.use("/uploads", express.static(uploadsPath));
 console.log("📁 Serving static files from:", uploadsPath);
 

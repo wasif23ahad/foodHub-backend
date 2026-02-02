@@ -53,6 +53,16 @@ export const auth = betterAuth({
                 defaultValue: "CUSTOMER",
                 input: true, // Allow setting during registration
             },
+            address: {
+                type: "string",
+                required: false,
+                input: true,
+            },
+            phone: {
+                type: "string",
+                required: false,
+                input: true,
+            },
         },
     },
 

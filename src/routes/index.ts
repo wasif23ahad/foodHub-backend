@@ -39,6 +39,9 @@ router.use("/categories", categoryRoutes);
 // Public provider routes - /api/providers/* (Public)
 router.use("/providers", publicProviderRoutes);
 
+import uploadRoutes from "./upload.routes";
+router.use("/upload", uploadRoutes);
+
 export default router;
 
 // Last updated: Commit 20 - Polish & Documentation

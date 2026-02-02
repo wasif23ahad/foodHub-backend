@@ -27,7 +27,9 @@
     "prisma": "^7.3.0",
     "tsup": "^8.5.1",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "@types/multer": "^1.4.11",
+    "@types/uuid": "^9.0.8"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.3.0",
@@ -38,6 +40,8 @@
     "express": "^5.2.1",
     "morgan": "^1.10.1",
     "pg": "^8.18.0",
-    "zod": "^4.3.6"
+    "zod": "^4.3.6",
+    "multer": "^1.4.5-lts.1",
+    "uuid": "^9.0.1"
   }
 }

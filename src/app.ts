@@ -55,7 +55,7 @@ app.get("/health", (_req: Request, res: Response) => {
 // BETTER AUTH HANDLER
 // Must be BEFORE express.json() middleware
 // ========================================
-app.all("/api/auth/*path", toNodeHandler(auth));
+app.all("/api/auth/(.*)", toNodeHandler(auth));
 
 // JSON body parser (after BetterAuth, before other routes)
 app.use(express.json());

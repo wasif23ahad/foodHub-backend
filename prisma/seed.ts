@@ -83,7 +83,7 @@ async function main() {
     // 4. Create 10 Curated Providers
     const providersToSeed = [
         { name: "Old Dhaka Kitchen", cuisine: "Deshi", desc: "Authentic Old Dhaka Tehari and Biriyani.", img: "old-dhaka-kitchen.jpg" },
-        { name: "Sultanic Biriyani", cuisine: "Biriyani", desc: "Premium Kacchi Biriyani specialists.", img: "sultanic-biriyani-logo.jpg" },
+        { name: "Sultanic Biriyani", cuisine: "Biriyani", desc: "Premium Kacchi Biriyani specialists.", img: "sultanic-biriyani.jpg" },
         { name: "Kabab Kingdom", cuisine: "Kababs", desc: "Ultimate destination for grilled meat lovers.", img: "kabab-kingdom.jpg" },
         { name: "The Pizza Press", cuisine: "Pizza & Italian", desc: "Hand-tossed artisanal pizzas.", img: "the-pizza-press.jpg" },
         { name: "Burger Bastion", cuisine: "Burgers & Fast Food", desc: "Gourmet beef and chicken burgers.", img: "burger-bastion.jpg" },

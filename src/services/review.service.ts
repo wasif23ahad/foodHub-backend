@@ -11,6 +11,62 @@ import type { CreateReviewInput, UpdateReviewInput, ReviewQueryInput } from "../
  * Create batch reviews for an order
  * Creates a review for each meal in the order
  */
+// Helper to update meal rating
+const updateMealRating = async (mealId: string) => {
+    const aggregate = await prisma.review.aggregate({
+        where: { mealId },
+        _avg: { rating: true },
+        _count: { rating: true }
+    });
+
+    let avgRating = 4.5;
+    if (aggregate._count.rating > 0 && aggregate._avg.rating !== null) {
+        avgRating = Number(aggregate._avg.rating.toFixed(1));
+    }
+
+    const meal = await prisma.meal.findUnique({
+        where: { id: mealId },
+        select: { providerProfileId: true }
+    });
+
+    if (!meal) {
+        return;
+    }
+
+    await prisma.meal.update({
+        where: { id: mealId },
+        data: { avgRating }
+    });
+
+    // Cascade update to provider
+    if (meal.providerProfileId) {
+        await updateProviderRating(meal.providerProfileId);
+    }
+};
+
+// Helper to update provider rating (Average of their meals)
+const updateProviderRating = async (providerProfileId: string) => {
+    const aggregate = await prisma.review.aggregate({
+        where: { meal: { providerProfileId } },
+        _avg: { rating: true },
+        _count: { rating: true }
+    });
+
+    let rating = 4.5;
+    if (aggregate._count.rating > 0 && aggregate._avg.rating !== null) {
+        rating = Number(aggregate._avg.rating.toFixed(1));
+    }
+
+    await prisma.providerProfile.update({
+        where: { id: providerProfileId },
+        data: { rating }
+    });
+};
+
+/**
+ * Create batch reviews for an order
+ * Creates a review for each meal in the order
+ */
 export const createOrderReview = async (
     userId: string,
     orderId: string,
@@ -37,7 +93,7 @@ export const createOrderReview = async (
     const reviews = await Promise.all(
         order.orderItems.map(async (item) => {
             // Upsert: Create if new, update if exists (in case they rate again)
-            return prisma.review.upsert({
+            const review = await prisma.review.upsert({
                 where: {
                     userId_mealId: {
                         userId,
@@ -55,6 +111,10 @@ export const createOrderReview = async (
                     comment: data.comment ?? null,
                 },
             });
+
+            // Update meal rating
+            await updateMealRating(item.mealId);
+            return review;
         })
     );
 
@@ -106,6 +166,9 @@ export const createReview = async (userId: string, data: CreateReviewInput) => {
         },
     });
 
+    // Update meal rating
+    await updateMealRating(data.mealId);
+
     return review;
 };
 
@@ -154,7 +217,7 @@ export const getMealReviews = async (mealId: string, query: ReviewQueryInput) =>
             limit,
             total,
             totalPages: Math.ceil(total / limit),
-            averageRating: avgResult._avg.rating ?? 0,
+            averageRating: avgResult._avg.rating ? Number(avgResult._avg.rating.toFixed(1)) : 4.5,
         },
     };
 };
@@ -192,6 +255,9 @@ export const updateReview = async (reviewId: string, userId: string, data: Updat
         },
     });
 
+    // Update meal rating
+    await updateMealRating(review.mealId);
+
     return updatedReview;
 };
 
@@ -214,6 +280,9 @@ export const deleteReview = async (reviewId: string, userId: string) => {
     await prisma.review.delete({
         where: { id: reviewId },
     });
+
+    // Update meal rating
+    await updateMealRating(review.mealId);
 
     return { message: "Review deleted successfully" };
 };

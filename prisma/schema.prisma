@@ -113,6 +113,7 @@ model providerProfile {
   phone        String?
   cuisineType  String?
   contactEmail String?
+  rating       Float    @default(4.5)
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -147,6 +148,7 @@ model meal {
   image             String?
   isAvailable       Boolean  @default(true)
   preparationTime   Int?     // in minutes
+  avgRating         Float    @default(4.5)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

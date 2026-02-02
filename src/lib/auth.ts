@@ -1,6 +1,6 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { admin } from "better-auth/plugins";
+// import { admin } from "better-auth/plugins";
 import prisma from "./prisma";
 import { config } from "../config";
 
@@ -73,10 +73,7 @@ export const auth = betterAuth({
     // ======================
     plugins: [
         // Admin plugin for user management
-        admin({
-            defaultRole: "CUSTOMER",
-            adminRoles: ["ADMIN"],
-        }),
+        // Admin plugin removed to allow public role changes
     ],
 
     // ======================

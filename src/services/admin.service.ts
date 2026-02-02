@@ -226,6 +226,7 @@ export const getDashboardStats = async () => {
         totalMeals,
         recentOrders,
         orderStats,
+        revenueData,
     ] = await Promise.all([
         prisma.user.count(),
         prisma.providerProfile.count(),
@@ -244,7 +245,13 @@ export const getDashboardStats = async () => {
             by: ["status"],
             _count: true,
         }),
+        prisma.order.aggregate({
+            where: { status: "DELIVERED" },
+            _sum: { totalAmount: true },
+        }),
     ]);
+
+    const totalRevenue = revenueData?._sum?.totalAmount || 0;
 
     const ordersByStatus = orderStats.reduce(
         (acc, curr) => {
@@ -259,6 +266,7 @@ export const getDashboardStats = async () => {
         totalProviders,
         totalOrders,
         totalMeals,
+        totalRevenue,
         ordersByStatus,
         recentOrders,
     };

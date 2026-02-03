@@ -23,7 +23,21 @@ const app: Application = express();
 // CORS - Allow frontend to communicate with backend
 app.use(
     cors({
-        origin: config.frontendUrl,
+        origin: (origin, callback) => {
+            // If no origin (like mobile apps/postman), allow it
+            if (!origin) return callback(null, true);
+
+            // Normalize both origins by removing trailing slashes
+            const normalizedOrigin = origin.replace(/\/$/, "");
+            const normalizedAllowed = config.frontendUrl.replace(/\/$/, "");
+
+            if (normalizedOrigin === normalizedAllowed) {
+                // Return the actual origin sent by the browser to ensure an exact match
+                callback(null, origin);
+            } else {
+                callback(new Error("CORS: Origin not allowed"));
+            }
+        },
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         credentials: true, // Allow cookies for BetterAuth sessions
     })

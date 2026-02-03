@@ -17,38 +17,44 @@ const __dirname = path.dirname(__filename);
 const app: Application = express();
 
 // ======================
-// MIDDLEWARE
+// CORS - First middleware: set headers ourselves so we NEVER send *
+// (Vercel or cors package may send * otherwise when credentials: true)
 // ======================
-
-
-// CORS - Must return a specific origin (never *) when credentials: true
-const allowedOrigins = [
+const ALLOWED_ORIGINS = [
     config.frontendUrl,
     "https://foodhub-frontend-sand.vercel.app",
     "http://localhost:3000",
     "http://localhost:5000"
-].filter(Boolean);
+].filter(Boolean) as string[];
 
+app.use((req: Request, res: Response, next) => {
+    const origin = req.headers.origin;
+    if (origin && ALLOWED_ORIGINS.includes(origin)) {
+        res.setHeader("Access-Control-Allow-Origin", origin);
+    } else if (!origin && ALLOWED_ORIGINS[0]) {
+        res.setHeader("Access-Control-Allow-Origin", ALLOWED_ORIGINS[0]);
+    }
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+    if (req.method === "OPTIONS") {
+        return res.status(204).end();
+    }
+    next();
+});
+
+// CORS package as backup (must not override our headers with *)
 const corsOptions: cors.CorsOptions = {
     origin: (origin, callback) => {
-        // When credentials are included, browser forbids Access-Control-Allow-Origin: *
-        // So we only allow specific origins and never return *
-        if (!origin) {
-            return callback(null, allowedOrigins[0] ?? false);
-        }
-        if (allowedOrigins.includes(origin)) {
-            return callback(null, origin);
-        }
+        if (!origin) return callback(null, ALLOWED_ORIGINS[0] ?? false);
+        if (ALLOWED_ORIGINS.includes(origin)) return callback(null, origin);
         return callback(null, false);
     },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
 };
-
 app.use(cors(corsOptions));
-
-// Explicit OPTIONS handler for preflight using the SAME options
 app.options("*", cors(corsOptions));
 
 // Static files are handled by Vercel's Edge Network

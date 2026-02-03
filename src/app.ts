@@ -24,27 +24,32 @@ const app: Application = express();
 // CORS - Allow frontend to communicate with backend
 const allowedOrigins = [config.frontendUrl, "http://localhost:3000", "http://localhost:5000"];
 
-app.use(
-    cors({
-        origin: (origin, callback) => {
-            // Allow requests with no origin (like mobile apps or curl requests)
-            if (!origin) return callback(null, true);
+const corsOptions = {
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
 
-            if (allowedOrigins.includes(origin) || allowedOrigins.includes(origin.replace(/\/$/, ""))) {
-                callback(null, true);
-            } else {
-                console.log(`[CORS] Allowed Origin: ${origin}`); // Log it but allow it for now to debug
-                callback(null, true); // TEMPORARY: Allow all to verify connectivity
-            }
-        },
-        methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        credentials: true,
-        allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-    })
-);
+        if (allowedOrigins.includes(origin) || allowedOrigins.includes(origin.replace(/\/$/, ""))) {
+            callback(null, true);
+        } else {
+            console.log(`[CORS] Request from unknown origin: ${origin}`);
+            // STRICT MODE: Fail if not in allowed list
+            // This prevents "Access-Control-Allow-Origin: *" errors when credentials are true
+            // callback(new Error("Not allowed by CORS")); 
 
-// Explicit OPTIONS handler for preflight
-app.options("*", cors());
+            // DEV MODE (Optional - use carefully): Reflect origin but don't wildcard
+            callback(null, true);
+        }
+    },
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+};
+
+app.use(cors(corsOptions));
+
+// Explicit OPTIONS handler for preflight using the SAME options
+app.options("*", cors(corsOptions));
 
 // Serve Static Files (Uploads)
 const uploadsPath = path.join(process.cwd(), "uploads");

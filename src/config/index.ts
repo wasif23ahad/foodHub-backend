@@ -13,7 +13,7 @@ export const config = {
     betterAuthUrl: (process.env["BETTER_AUTH_URL"] ?? "http://localhost:5000").replace(/\/$/, "") + "/api/auth",
 
     // CORS
-    frontendUrl: process.env["FRONTEND_URL"] ?? "http://localhost:3000",
+    frontendUrl: (process.env["FRONTEND_URL"] ?? "http://localhost:3000").replace(/\/$/, ""),
 
     // Google Auth
     googleClientId: process.env["GOOGLE_CLIENT_ID"],

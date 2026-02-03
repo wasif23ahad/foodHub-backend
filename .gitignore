@@ -6,3 +6,4 @@ dist
 .idea
 /generated/prisma
 .vercel
+VERCEL_DEPLOYMENT.md

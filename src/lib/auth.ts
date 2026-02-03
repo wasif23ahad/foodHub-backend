@@ -97,7 +97,7 @@ export const auth = betterAuth({
     // ======================
     // TRUSTED ORIGINS
     // ======================
-    trustedOrigins: [config.frontendUrl],
+    trustedOrigins: [config.frontendUrl, "https://foodhub-frontend-sand.vercel.app"],
 });
 
 // Export auth type for client

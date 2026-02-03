@@ -22,7 +22,12 @@ const app: Application = express();
 
 // CORS - Allow frontend to communicate with backend
 // CORS - Allow frontend to communicate with backend
-const allowedOrigins = [config.frontendUrl, "http://localhost:3000", "http://localhost:5000"];
+const allowedOrigins = [
+    config.frontendUrl,
+    "https://foodhub-frontend-sand.vercel.app", // Hardcoded fallback
+    "http://localhost:3000",
+    "http://localhost:5000"
+];
 
 const corsOptions = {
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
@@ -33,12 +38,8 @@ const corsOptions = {
             callback(null, true);
         } else {
             console.log(`[CORS] Request from unknown origin: ${origin}`);
-            // STRICT MODE: Fail if not in allowed list
-            // This prevents "Access-Control-Allow-Origin: *" errors when credentials are true
-            // callback(new Error("Not allowed by CORS")); 
-
-            // DEV MODE (Optional - use carefully): Reflect origin but don't wildcard
-            callback(null, true);
+            // Strict disallow for unknown origins to prevent wildcard issues
+            callback(new Error("Not allowed by CORS"));
         }
     },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],

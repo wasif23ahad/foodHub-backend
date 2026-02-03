@@ -20,7 +20,7 @@ const app: Application = express();
 // MIDDLEWARE
 // ======================
 
-// CORS - Allow frontend to communicate with backend
+
 // CORS - Allow frontend to communicate with backend
 const allowedOrigins = [
     config.frontendUrl,
@@ -41,13 +41,10 @@ app.use(cors(corsOptions));
 // Explicit OPTIONS handler for preflight using the SAME options
 app.options("*", cors(corsOptions));
 
-// Serve Static Files (Uploads)
-// Serve Static Files (Locally & Fallback)
-// On Vercel, the 'public' folder is served by the CDN automatically.
-// This middleware ensures it works locally.
-const publicPath = path.join(process.cwd(), "public");
-app.use(express.static(publicPath));
-console.log("📁 Serving static files from:", publicPath);
+// Static files are handled by Vercel's Edge Network
+// Local dev fallback is not needed if we rely on Vercel
+// const publicPath = path.join(process.cwd(), "public");
+// app.use(express.static(publicPath));
 
 // Request logging (dev mode only)
 if (config.nodeEnv === "development") {

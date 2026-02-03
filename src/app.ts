@@ -24,18 +24,18 @@ const app: Application = express();
 app.use(
     cors({
         origin: (origin, callback) => {
-            // If no origin (like mobile apps/postman), allow it
             if (!origin) return callback(null, true);
 
-            // Normalize both origins by removing trailing slashes
             const normalizedOrigin = origin.replace(/\/$/, "");
             const normalizedAllowed = config.frontendUrl.replace(/\/$/, "");
 
+            console.log(`[CORS] Request: ${origin} | Allowed: ${config.frontendUrl}`);
+
             if (normalizedOrigin === normalizedAllowed) {
-                // Return the actual origin sent by the browser to ensure an exact match
-                callback(null, origin);
+                callback(null, true);
             } else {
-                callback(new Error("CORS: Origin not allowed"));
+                console.warn(`[CORS] Denied: ${origin} does not match ${config.frontendUrl}`);
+                callback(null, false);
             }
         },
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],

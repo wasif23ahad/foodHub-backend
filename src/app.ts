@@ -30,21 +30,14 @@ const allowedOrigins = [
 ];
 
 const corsOptions = {
-    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-        // Allow requests with no origin (like mobile apps or curl requests)
-        if (!origin) return callback(null, true);
-
-        if (allowedOrigins.includes(origin) || allowedOrigins.includes(origin.replace(/\/$/, ""))) {
-            callback(null, true);
-        } else {
-            console.log(`[CORS] Request from unknown origin: ${origin}`);
-            // Strict disallow for unknown origins to prevent wildcard issues
-            callback(new Error("Not allowed by CORS"));
-        }
-    },
+    origin: allowedOrigins, // Let 'cors' package handle reflection safely
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+};
+methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    credentials: true,
+        allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
 };
 
 app.use(cors(corsOptions));

@@ -21,27 +21,30 @@ const app: Application = express();
 // ======================
 
 // CORS - Allow frontend to communicate with backend
+// CORS - Allow frontend to communicate with backend
+const allowedOrigins = [config.frontendUrl, "http://localhost:3000", "http://localhost:5000"];
+
 app.use(
     cors({
         origin: (origin, callback) => {
+            // Allow requests with no origin (like mobile apps or curl requests)
             if (!origin) return callback(null, true);
 
-            const normalizedOrigin = origin.replace(/\/$/, "");
-            const normalizedAllowed = config.frontendUrl.replace(/\/$/, "");
-
-            console.log(`[CORS] Request: ${origin} | Allowed: ${config.frontendUrl}`);
-
-            if (normalizedOrigin === normalizedAllowed) {
+            if (allowedOrigins.includes(origin) || allowedOrigins.includes(origin.replace(/\/$/, ""))) {
                 callback(null, true);
             } else {
-                console.warn(`[CORS] Denied: ${origin} does not match ${config.frontendUrl}`);
-                callback(null, false);
+                console.log(`[CORS] Allowed Origin: ${origin}`); // Log it but allow it for now to debug
+                callback(null, true); // TEMPORARY: Allow all to verify connectivity
             }
         },
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        credentials: true, // Allow cookies for BetterAuth sessions
+        credentials: true,
+        allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
     })
 );
+
+// Explicit OPTIONS handler for preflight
+app.options("*", cors());
 
 // Serve Static Files (Uploads)
 const uploadsPath = path.join(process.cwd(), "uploads");

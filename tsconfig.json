@@ -9,7 +9,6 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "target": "ES2022",
-    "esModuleInterop": true,
     // "types": ["node"],
     // and npm install -D @types/node
     // Other Outputs

@@ -95,9 +95,13 @@ export const auth = betterAuth({
     },
 
     // ======================
-    // TRUSTED ORIGINS
+    // TRUSTED ORIGINS (FRONTEND_URL + deployed URL for serverless)
     // ======================
-    trustedOrigins: [config.frontendUrl, "https://foodhub-frontend-sand.vercel.app"],
+    trustedOrigins: [
+        config.frontendUrl,
+        "https://foodhub-frontend-sand.vercel.app",
+        "http://localhost:3000",
+    ].filter(Boolean),
 });
 
 // Export auth type for client

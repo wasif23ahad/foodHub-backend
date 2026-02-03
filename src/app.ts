@@ -21,16 +21,26 @@ const app: Application = express();
 // ======================
 
 
-// CORS - Allow frontend to communicate with backend
+// CORS - Must return a specific origin (never *) when credentials: true
 const allowedOrigins = [
     config.frontendUrl,
-    "https://foodhub-frontend-sand.vercel.app", // Hardcoded fallback
+    "https://foodhub-frontend-sand.vercel.app",
     "http://localhost:3000",
     "http://localhost:5000"
-];
+].filter(Boolean);
 
-const corsOptions = {
-    origin: allowedOrigins,
+const corsOptions: cors.CorsOptions = {
+    origin: (origin, callback) => {
+        // When credentials are included, browser forbids Access-Control-Allow-Origin: *
+        // So we only allow specific origins and never return *
+        if (!origin) {
+            return callback(null, allowedOrigins[0] ?? false);
+        }
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, origin);
+        }
+        return callback(null, false);
+    },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
@@ -53,15 +63,20 @@ if (config.nodeEnv === "development") {
 
 // =====================================
 // HEALTH CHECK (before json middleware)
+// Local: GET /health. Vercel: only /api/* hits serverless, so also expose /api/health
 // =====================================
+const healthPayload = () => ({
+    success: true,
+    message: "FoodHub API is running",
+    timestamp: new Date().toISOString(),
+    environment: config.nodeEnv,
+    allowedOrigin: config.frontendUrl,
+});
 app.get("/health", (_req: Request, res: Response) => {
-    res.status(200).json({
-        success: true,
-        message: "FoodHub API is running",
-        timestamp: new Date().toISOString(),
-        environment: config.nodeEnv,
-        allowedOrigin: config.frontendUrl,
-    });
+    res.status(200).json(healthPayload());
+});
+app.get("/api/health", (_req: Request, res: Response) => {
+    res.status(200).json(healthPayload());
 });
 
 // ========================================

@@ -8,6 +8,13 @@ import prisma from "./lib/prisma";
 
 async function startServer() {
     try {
+        // Validate required env at runtime (not at config import, so Vercel build can succeed)
+        const required = ["DATABASE_URL", "BETTER_AUTH_SECRET"];
+        for (const key of required) {
+            if (!process.env[key]) {
+                throw new Error(`Missing required environment variable: ${key}`);
+            }
+        }
         // Test database connection
         await prisma.$queryRaw`SELECT 1`;
         console.log("✅ Database connected successfully");

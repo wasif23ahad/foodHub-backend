@@ -24,10 +24,5 @@ export const config = {
     adminPassword: process.env["ADMIN_PASSWORD"] ?? "admin123",
 } as const;
 
-// Validate required env vars
-const requiredEnvVars = ["DATABASE_URL", "BETTER_AUTH_SECRET"];
-for (const envVar of requiredEnvVars) {
-    if (!process.env[envVar]) {
-        throw new Error(`Missing required environment variable: ${envVar}`);
-    }
-}
+// Required env vars are validated at server startup (server.ts), not at import,
+// so Vercel build can succeed even when build env has no DATABASE_URL.

@@ -8,6 +8,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsup src/server.ts --format esm --outDir dist --clean",
     "start": "node dist/server.js",
+    "postinstall": "prisma generate",
     "db:migrate": "npx prisma migrate dev",
     "db:push": "npx prisma db push",
     "db:seed": "tsx prisma/seed.ts",

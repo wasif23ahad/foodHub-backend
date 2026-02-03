@@ -6,12 +6,10 @@
     "outDir": "./dist",
     // Environment Settings
     // See also https://aka.ms/tsconfig/module
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
     "target": "ES2022",
-    // "types": ["node"], // Removed to allow auto-discovery of all installed @types
-    // For nodejs:
-    // "lib": ["esnext"],
+    "esModuleInterop": true,
     // "types": ["node"],
     // and npm install -D @types/node
     // Other Outputs
@@ -36,7 +34,7 @@
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
     "skipLibCheck": true,
-    "esModuleInterop": true,
+    "esModuleInterop": true
   },
   "include": [
     "src/**/*"

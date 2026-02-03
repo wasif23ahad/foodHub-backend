@@ -62,6 +62,7 @@ app.get("/health", (_req: Request, res: Response) => {
         message: "FoodHub API is running",
         timestamp: new Date().toISOString(),
         environment: config.nodeEnv,
+        allowedOrigin: config.frontendUrl,
     });
 });
 

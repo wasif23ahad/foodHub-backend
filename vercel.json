@@ -2,7 +2,7 @@
     "version": 2,
     "buildCommand": "pnpm build",
     "installCommand": "pnpm install",
-    "framework": "node.js",
+    "framework": "node",
     "builds": [
         {
             "src": "dist/server.js",

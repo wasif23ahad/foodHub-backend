@@ -52,9 +52,12 @@ app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 
 // Serve Static Files (Uploads)
-const uploadsPath = path.join(process.cwd(), "uploads");
-app.use("/uploads", express.static(uploadsPath));
-console.log("📁 Serving static files from:", uploadsPath);
+// Serve Static Files (Locally & Fallback)
+// On Vercel, the 'public' folder is served by the CDN automatically.
+// This middleware ensures it works locally.
+const publicPath = path.join(process.cwd(), "public");
+app.use(express.static(publicPath));
+console.log("📁 Serving static files from:", publicPath);
 
 // Request logging (dev mode only)
 if (config.nodeEnv === "development") {

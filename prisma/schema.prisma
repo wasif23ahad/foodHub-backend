@@ -28,6 +28,15 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum DietaryPreference {
+  REGULAR
+  VEGETARIAN
+  VEGAN
+  GLUTEN_FREE
+  KETO
+  HALAL
+}
+
 // ========================================
 // BETTER AUTH TABLES
 // ========================================
@@ -134,6 +143,7 @@ model category {
   name        String   @unique
   description String?
   image       String?
+  isFeatured  Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -142,18 +152,19 @@ model category {
 }
 
 model meal {
-  id                String   @id @default(cuid())
+  id                String            @id @default(cuid())
   providerProfileId String
   categoryId        String
   name              String
   description       String?
   price             Float
   image             String?
-  isAvailable       Boolean  @default(true)
-  preparationTime   Int?     // in minutes
-  avgRating         Float    @default(4.5)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  dietaryPreference DietaryPreference @default(REGULAR)
+  isAvailable       Boolean           @default(true)
+  preparationTime   Int?              // in minutes
+  avgRating         Float             @default(4.5)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
   // Relations
   providerProfile providerProfile @relation(fields: [providerProfileId], references: [id], onDelete: Cascade)

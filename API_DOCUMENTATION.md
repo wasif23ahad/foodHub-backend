@@ -13,6 +13,7 @@ http://localhost:5000/api
 All authenticated endpoints require a valid session token from Better Auth.
 
 **Headers:**
+
 ```
 Authorization: Bearer <session_token>
 Cookie: better-auth.session_token=<session_token>
@@ -23,9 +24,11 @@ Cookie: better-auth.session_token=<session_token>
 ## Health Check
 
 ### GET /health
+
 Check API health status.
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -40,27 +43,33 @@ Check API health status.
 ## Authentication (Better Auth)
 
 ### POST /api/auth/sign-up/email
+
 Register a new user.
 
 ### POST /api/auth/sign-in/email
+
 Sign in with email and password.
 
 ### POST /api/auth/sign-out
+
 Sign out current session.
 
 ### GET /api/auth/session
+
 Get current session info.
 
-*See Better Auth documentation for complete auth endpoints.*
+_See Better Auth documentation for complete auth endpoints._
 
 ---
 
 ## User Profile
 
 ### GET /api/user/profile
+
 Get current user's profile. **[Auth Required]**
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -78,9 +87,11 @@ Get current user's profile. **[Auth Required]**
 ```
 
 ### PATCH /api/user/profile
+
 Update current user's profile. **[Auth Required]**
 
 **Body:**
+
 ```json
 {
   "name": "New Name",
@@ -89,9 +100,11 @@ Update current user's profile. **[Auth Required]**
 ```
 
 ### GET /api/user/dashboard
+
 Get user dashboard stats. **[Auth Required]**
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -105,6 +118,7 @@ Get user dashboard stats. **[Auth Required]**
 ```
 
 ### GET /api/user/orders
+
 Get user's order history. **[Auth Required]**
 
 ---
@@ -112,6 +126,7 @@ Get user's order history. **[Auth Required]**
 ## Meals (Public)
 
 ### GET /api/meals
+
 Get all meals with filters.
 
 **Query Parameters:**
@@ -123,11 +138,13 @@ Get all meals with filters.
 | `minPrice` | number | Minimum price |
 | `maxPrice` | number | Maximum price |
 | `isAvailable` | boolean | Filter by availability |
+| `dietaryPreference` | string | Filter by dietary preference (`REGULAR`, `VEGETARIAN`, etc.) |
 | `sort` | string | `price_asc`, `price_desc`, `newest`, `oldest`, `rating`, `popular` |
 | `page` | number | Page number (default: 1) |
 | `limit` | number | Items per page (default: 10, max: 100) |
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -137,6 +154,7 @@ Get all meals with filters.
     "price": 12.99,
     "avgRating": 4.5,
     "reviewCount": 10,
+    "dietaryPreference": "REGULAR",
     "category": {...},
     "providerProfile": {...}
   }],
@@ -150,6 +168,7 @@ Get all meals with filters.
 ```
 
 ### GET /api/meals/:id
+
 Get meal details with reviews.
 
 ---
@@ -157,6 +176,7 @@ Get meal details with reviews.
 ## Categories (Public)
 
 ### GET /api/categories
+
 Get all categories.
 
 **Query Parameters:**
@@ -167,6 +187,7 @@ Get all categories.
 | `limit` | number | Items per page |
 
 ### GET /api/categories/:id
+
 Get category by ID.
 
 ---
@@ -174,6 +195,7 @@ Get category by ID.
 ## Providers (Public)
 
 ### GET /api/providers
+
 Get all active providers.
 
 **Query Parameters:**
@@ -187,6 +209,7 @@ Get all active providers.
 **Response includes:** `avgRating`, `totalReviews`, meal/order counts.
 
 ### GET /api/providers/:id
+
 Get provider details with menu.
 
 ---
@@ -194,37 +217,56 @@ Get provider details with menu.
 ## Orders (Customer)
 
 ### POST /api/orders
+
 Create a new order. **[Auth Required]**
 
 **Body:**
+
 ```json
 {
-  "providerProfileId": "cuid",
   "deliveryAddress": "123 Main St",
   "deliveryNotes": "Ring doorbell",
-  "items": [
-    { "mealId": "cuid", "quantity": 2 }
-  ]
+  "items": [{ "mealId": "cuid", "quantity": 2 }]
 }
 ```
 
+> **Note:** All items must be from the same provider. The `providerProfileId` is derived automatically from the meals.
+
 ### GET /api/orders
+
 Get customer's orders. **[Auth Required]**
 
 ### GET /api/orders/:id
+
 Get order details. **[Auth Required]**
 
 ### PATCH /api/orders/:id/cancel
-Cancel an order (only if PENDING). **[Auth Required]**
+
+Cancel an order (only if PLACED). **[Auth Required]**
+
+### POST /api/orders/:id/reviews
+
+Submit a review for all meals in an order. **[Auth Required]**
+
+**Body:**
+
+```json
+{
+  "rating": 5,
+  "comment": "Delicious!"
+}
+```
 
 ---
 
 ## Reviews
 
 ### POST /api/reviews
+
 Create a review for an ordered meal. **[Auth Required]**
 
 **Body:**
+
 ```json
 {
   "mealId": "cuid",
@@ -235,15 +277,19 @@ Create a review for an ordered meal. **[Auth Required]**
 ```
 
 ### GET /api/meals/:mealId/reviews
+
 Get reviews for a meal. **[Public]**
 
 ### GET /api/reviews/me
+
 Get current user's reviews. **[Auth Required]**
 
 ### PUT /api/reviews/:id
+
 Update own review. **[Auth Required]**
 
 ### DELETE /api/reviews/:id
+
 Delete own review. **[Auth Required]**
 
 ---
@@ -251,47 +297,72 @@ Delete own review. **[Auth Required]**
 ## Provider Dashboard
 
 ### GET /api/provider/profile
+
 Get provider profile. **[Provider Auth]**
 
 ### POST /api/provider/profile
+
 Create provider profile. **[Auth Required]**
 
 ### PUT /api/provider/profile
+
 Update provider profile. **[Provider Auth]**
 
 ### GET /api/provider/meals
+
 Get provider's meals. **[Provider Auth]**
 
 ### POST /api/provider/meals
+
 Create a new meal. **[Provider Auth]**
 
 ### PUT /api/provider/meals/:id
+
 Update a meal. **[Provider Auth]**
 
 ### DELETE /api/provider/meals/:id
+
 Delete a meal. **[Provider Auth]**
 
 ### GET /api/provider/orders
+
 Get provider's orders. **[Provider Auth]**
 
+### GET /api/provider/orders/:id
+
+Get specific order details. **[Provider Auth]**
+
 ### PATCH /api/provider/orders/:id/status
+
 Update order status. **[Provider Auth]**
 
 **Body:**
+
 ```json
 {
-  "status": "CONFIRMED" | "PREPARING" | "OUT_FOR_DELIVERY" | "DELIVERED"
+  "status": "PREPARING" | "READY" | "DELIVERED" | "CANCELLED"
 }
 ```
+
+**Valid Status Transitions:**
+| From | Allowed Transitions |
+|------|--------------------|
+| PLACED | PREPARING, CANCELLED |
+| PREPARING | READY, CANCELLED |
+| READY | DELIVERED |
+| DELIVERED | _(terminal)_ |
+| CANCELLED | _(terminal)_ |
 
 ---
 
 ## Admin Dashboard
 
 ### GET /api/admin/dashboard
+
 Get admin dashboard stats. **[Admin Auth]**
 
 ### GET /api/admin/users
+
 Get all users with filters. **[Admin Auth]**
 
 **Query Parameters:**
@@ -304,12 +375,15 @@ Get all users with filters. **[Admin Auth]**
 | `limit` | number | Items per page |
 
 ### GET /api/admin/users/:id
+
 Get user details. **[Admin Auth]**
 
 ### PATCH /api/admin/users/:id/ban
+
 Ban or unban a user. **[Admin Auth]**
 
 **Body:**
+
 ```json
 {
   "banned": true,
@@ -318,15 +392,19 @@ Ban or unban a user. **[Admin Auth]**
 ```
 
 ### GET /api/admin/orders
+
 Get all orders system-wide. **[Admin Auth]**
 
 ### POST /api/admin/categories
+
 Create a category. **[Admin Auth]**
 
 ### PUT /api/admin/categories/:id
+
 Update a category. **[Admin Auth]**
 
 ### DELETE /api/admin/categories/:id
+
 Delete a category (only if no meals). **[Admin Auth]**
 
 ---
@@ -357,11 +435,11 @@ All errors follow this format:
 
 ## User Roles
 
-| Role | Capabilities |
-|------|-------------|
-| `CUSTOMER` | Browse, order, review meals |
+| Role       | Capabilities                                 |
+| ---------- | -------------------------------------------- |
+| `CUSTOMER` | Browse, order, review meals                  |
 | `PROVIDER` | All customer abilities + manage meals/orders |
-| `ADMIN` | All abilities + manage users/categories |
+| `ADMIN`    | All abilities + manage users/categories      |
 
 ---
 

@@ -6,6 +6,7 @@ import { z } from "zod";
 
 // Sort options for meals
 const SortOptions = ["price_asc", "price_desc", "newest", "oldest", "rating", "popular"] as const;
+const DietaryPreferenceOptions = ["REGULAR", "VEGETARIAN", "VEGAN", "GLUTEN_FREE", "KETO", "HALAL"] as const;
 
 // Create meal schema
 export const createMealSchema = z.object({
@@ -23,6 +24,7 @@ export const createMealSchema = z.object({
         .max(99999.99, "Price is too high"),
     image: z.string().url("Image must be a valid URL").optional(),
     categoryId: z.string().cuid("Invalid category ID"),
+    dietaryPreference: z.enum(DietaryPreferenceOptions).optional().default("REGULAR"),
     isAvailable: z.boolean().optional().default(true),
 });
 
@@ -44,6 +46,7 @@ export const updateMealSchema = z.object({
         .optional(),
     image: z.string().url("Image must be a valid URL").optional(),
     categoryId: z.string().cuid("Invalid category ID").optional(),
+    dietaryPreference: z.enum(DietaryPreferenceOptions).optional(),
     isAvailable: z.boolean().optional(),
 });
 
@@ -54,6 +57,7 @@ export const mealQuerySchema = z.object({
     search: z.string().optional(),
     minPrice: z.coerce.number().positive().optional(),
     maxPrice: z.coerce.number().positive().optional(),
+    dietaryPreference: z.enum(DietaryPreferenceOptions).optional(),
     isAvailable: z.coerce.boolean().optional(),
     sort: z.enum(SortOptions).optional().default("newest"),
     page: z.coerce.number().int().positive().default(1),

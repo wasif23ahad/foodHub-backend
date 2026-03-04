@@ -325,3 +325,49 @@ export const getCustomerOrderById = async (orderId: string, userId: string) => {
 
     return order;
 };
+
+/**
+ * Cancel order (Customer only - only if PLACED)
+ */
+export const cancelOrder = async (orderId: string, userId: string) => {
+    const order = await prisma.order.findUnique({
+        where: { id: orderId },
+    });
+
+    if (!order) {
+        throw new NotFoundError("Order not found");
+    }
+
+    if (order.customerId !== userId) {
+        throw new ForbiddenError("You can only cancel your own orders");
+    }
+
+    if (order.status !== "PLACED") {
+        throw new BadRequestError(
+            `Cannot cancel order with status ${order.status}. Only PLACED orders can be cancelled.`
+        );
+    }
+
+    const updatedOrder = await prisma.order.update({
+        where: { id: orderId },
+        data: { status: "CANCELLED" },
+        include: {
+            providerProfile: {
+                include: {
+                    user: {
+                        select: { id: true, name: true },
+                    },
+                },
+            },
+            orderItems: {
+                include: {
+                    meal: {
+                        select: { id: true, name: true, price: true, image: true },
+                    },
+                },
+            },
+        },
+    });
+
+    return updatedOrder;
+};

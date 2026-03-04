@@ -55,7 +55,6 @@ const corsOptions: cors.CorsOptions = {
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
 };
 app.use(cors(corsOptions));
-app.options("*", cors(corsOptions));
 
 // Static files are handled by Vercel's Edge Network
 // Local dev fallback is not needed if we rely on Vercel

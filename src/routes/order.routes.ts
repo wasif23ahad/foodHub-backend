@@ -40,6 +40,14 @@ router.get(
     orderController.getCustomerOrderById
 );
 
+// Cancel an order (only if PLACED)
+router.patch(
+    "/:id/cancel",
+    requireAuth,
+    validateParams(orderIdParamSchema),
+    orderController.cancelOrder
+);
+
 // Rate an order
 router.post(
     "/:id/reviews",

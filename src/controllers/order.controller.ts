@@ -134,3 +134,22 @@ export const getCustomerOrderById = async (
         next(error);
     }
 };
+
+/**
+ * PATCH /api/orders/:id/cancel
+ * Cancel an order (only if PLACED)
+ */
+export const cancelOrder = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> => {
+    try {
+        const userId = req.user!.id;
+        const orderId = req.params["id"] as string;
+        const order = await orderService.cancelOrder(orderId, userId);
+        sendSuccess(res, order, "Order cancelled successfully");
+    } catch (error) {
+        next(error);
+    }
+};

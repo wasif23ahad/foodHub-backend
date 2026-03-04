@@ -49,13 +49,14 @@ export const createMeal = async (providerId: string, data: CreateMealInput) => {
  * Get all meals with optional filters (Public)
  */
 export const getMeals = async (query: MealQueryInput) => {
-    const { categoryId, providerId, search, minPrice, maxPrice, isAvailable, sort, page, limit } = query;
+    const { categoryId, providerId, search, minPrice, maxPrice, dietaryPreference, isAvailable, sort, page, limit } = query;
 
     const where: Record<string, unknown> = {};
 
     if (categoryId) where["categoryId"] = categoryId;
     if (providerId) where["providerProfileId"] = providerId;
     if (isAvailable !== undefined) where["isAvailable"] = isAvailable;
+    if (dietaryPreference) where["dietaryPreference"] = dietaryPreference;
 
     if (search) {
         where["OR"] = [

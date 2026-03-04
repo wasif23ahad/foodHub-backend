@@ -11,7 +11,7 @@ import type { CreateCategoryInput, UpdateCategoryInput, CategoryQueryInput } fro
  * Get all categories with optional filters
  */
 export const getCategories = async (query: CategoryQueryInput) => {
-    const { search, page, limit } = query;
+    const { search, isFeatured, page, limit } = query;
 
     const where: Record<string, unknown> = {};
 
@@ -20,6 +20,10 @@ export const getCategories = async (query: CategoryQueryInput) => {
             { name: { contains: search, mode: "insensitive" } },
             { description: { contains: search, mode: "insensitive" } },
         ];
+    }
+
+    if (isFeatured !== undefined) {
+        where["isFeatured"] = isFeatured;
     }
 
     const skip = (page - 1) * limit;
@@ -88,6 +92,7 @@ export const createCategory = async (data: CreateCategoryInput) => {
             name: data.name,
             description: data.description ?? null,
             image: data.image ?? null,
+            isFeatured: data.isFeatured ?? false,
         },
     });
 
@@ -121,6 +126,7 @@ export const updateCategory = async (categoryId: string, data: UpdateCategoryInp
     if (data.name !== undefined) updateData["name"] = data.name;
     if (data.description !== undefined) updateData["description"] = data.description;
     if (data.image !== undefined) updateData["image"] = data.image;
+    if (data.isFeatured !== undefined) updateData["isFeatured"] = data.isFeatured;
 
     const updatedCategory = await prisma.category.update({
         where: { id: categoryId },

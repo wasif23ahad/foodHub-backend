@@ -12,6 +12,7 @@ export const createCategorySchema = z.object({
         .max(50, "Category name cannot exceed 50 characters"),
     description: z.string().max(500, "Description cannot exceed 500 characters").optional(),
     image: z.string().url("Image must be a valid URL").optional(),
+    isFeatured: z.boolean().default(false).optional(),
 });
 
 // Update category schema
@@ -23,6 +24,7 @@ export const updateCategorySchema = z.object({
         .optional(),
     description: z.string().max(500, "Description cannot exceed 500 characters").optional(),
     image: z.string().url("Image must be a valid URL").nullable().optional(),
+    isFeatured: z.boolean().optional(),
 });
 
 // Category ID param schema
@@ -33,6 +35,7 @@ export const categoryIdParamSchema = z.object({
 // Query schema for listing categories
 export const categoryQuerySchema = z.object({
     search: z.string().optional(),
+    isFeatured: z.preprocess((val) => val === "true" || val === true, z.boolean()).optional(),
     page: z.coerce.number().int().positive().default(1),
     limit: z.coerce.number().int().positive().max(100).default(20),
 });

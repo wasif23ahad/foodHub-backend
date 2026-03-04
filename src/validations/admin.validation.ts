@@ -24,19 +24,19 @@ export const banUserSchema = z.object({
 
 // User ID param schema
 export const userIdParamSchema = z.object({
-    id: z.string().cuid("Invalid user ID"),
+    id: z.string().min(1, "Invalid user ID"),
 });
 
 // Provider ID param schema
 export const providerIdParamSchema = z.object({
-    id: z.string().cuid("Invalid provider ID"),
+    id: z.string().min(1, "Invalid provider ID"),
 });
 
 // Order query schema for admin
 export const adminOrderQuerySchema = z.object({
     status: z.enum(["PLACED", "PREPARING", "READY", "DELIVERED", "CANCELLED"]).optional(),
-    providerId: z.string().cuid().optional(),
-    customerId: z.string().cuid().optional(),
+    providerId: z.string().min(1).optional(),
+    customerId: z.string().min(1).optional(),
     page: z.coerce.number().int().positive().default(1),
     limit: z.coerce.number().int().positive().max(100).default(10),
 });

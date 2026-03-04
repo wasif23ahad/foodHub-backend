@@ -4,9 +4,10 @@ import multer, { FileFilterCallback } from "multer"; // Import FileFilterCallbac
 import path from "path";
 import fs from "fs";
 import { v4 as uuidv4 } from "uuid";
+import { uploadToCloudinary } from "../utils/cloudinary.util";
 import { sendSuccess, sendError } from "../utils/response.util";
 
-const router = Router();
+const router: Router = Router();
 
 // Ensure uploads directory exists
 const uploadDir = path.join(process.cwd(), "uploads");
@@ -51,18 +52,25 @@ const upload = multer({
 
 
 // Upload Route
-router.post("/", upload.single("file"), (req: Request, res: Response) => {
+router.post("/", upload.single("file"), async (req: Request, res: Response) => {
     const multerReq = req as MulterRequest;
     try {
         if (!multerReq.file) {
             return sendError(res, "No file uploaded", 400);
         }
 
-        // URL to access the file
+        // Try uploading to Cloudinary
+        const cloudinaryUrl = await uploadToCloudinary(multerReq.file.path);
+
+        if (cloudinaryUrl) {
+            return sendSuccess(res, { url: cloudinaryUrl }, "File uploaded successfully to Cloudinary");
+        }
+
+        // URL to access the file (local fallback)
         // Assumes 'uploads' is served statically from the root or via /uploads path
         const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${multerReq.file.filename}`;
 
-        sendSuccess(res, { url: fileUrl }, "File uploaded successfully");
+        sendSuccess(res, { url: fileUrl }, "File uploaded successfully laterally");
     } catch (error) {
         console.error("Upload error:", error);
         sendError(res, "File upload failed", 500);

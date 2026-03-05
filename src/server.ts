@@ -36,21 +36,20 @@ async function startServer() {
     }
 }
 
-// Handle graceful shutdown
-process.on("SIGINT", async () => {
-    console.log("\n🛑 Shutting down gracefully...");
-    await prisma.$disconnect();
-    process.exit(0);
-});
-
-process.on("SIGTERM", async () => {
-    console.log("\n🛑 Shutting down gracefully...");
-    await prisma.$disconnect();
-    process.exit(0);
-});
-
-// Start the server only in non-Vercel environment
+// Handle graceful shutdown - only in non-Vercel environment
 if (process.env["VERCEL"] !== "1") {
+    process.on("SIGINT", async () => {
+        console.log("\n🛑 Shutting down gracefully...");
+        await prisma.$disconnect();
+        process.exit(0);
+    });
+
+    process.on("SIGTERM", async () => {
+        console.log("\n🛑 Shutting down gracefully...");
+        await prisma.$disconnect();
+        process.exit(0);
+    });
+
     startServer();
 }
 

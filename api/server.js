@@ -2778,8 +2778,9 @@ var uploadToCloudinary = async (localFilePath) => {
 
 // src/routes/upload.routes.ts
 var router9 = Router9();
-var uploadDir = path.join(process.cwd(), "uploads");
-if (!fs2.existsSync(uploadDir)) {
+var isVercel = process.env["VERCEL"] === "1";
+var uploadDir = isVercel ? "/tmp" : path.join(process.cwd(), "uploads");
+if (!isVercel && !fs2.existsSync(uploadDir)) {
   fs2.mkdirSync(uploadDir, { recursive: true });
 }
 var storage = multer.diskStorage({

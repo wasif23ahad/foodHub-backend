@@ -92,6 +92,10 @@ export const auth = betterAuth({
     advanced: {
         // Use secure cookies in production
         useSecureCookies: config.nodeEnv === "production",
+        defaultCookieAttributes: {
+            sameSite: config.nodeEnv === "production" ? "none" : "lax",
+            secure: config.nodeEnv === "production",
+        },
     },
 
     // ======================

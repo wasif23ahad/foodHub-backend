@@ -11,15 +11,15 @@ var config = {
   port: parseInt(process.env["PORT"] ?? "5000", 10),
   nodeEnv: process.env["NODE_ENV"] ?? "development",
   // Database
-  databaseUrl: process.env["DATABASE_URL"],
+  databaseUrl: process.env["DATABASE_URL"] || "",
   // BetterAuth
-  betterAuthSecret: process.env["BETTER_AUTH_SECRET"],
-  betterAuthUrl: (process.env["BETTER_AUTH_URL"] ?? "http://localhost:5000").replace(/\/$/, "") + "/api/auth",
+  betterAuthSecret: process.env["BETTER_AUTH_SECRET"] ?? "",
+  betterAuthUrl: (process.env["BETTER_AUTH_URL"] ?? process.env["VERCEL_URL"] ? `https://${process.env["VERCEL_URL"]}` : "http://localhost:5000").replace(/\/$/, "") + "/api/auth",
   // CORS
   frontendUrl: (process.env["FRONTEND_URL"] ?? "http://localhost:3000").replace(/\/$/, ""),
   // Google Auth
-  googleClientId: process.env["GOOGLE_CLIENT_ID"],
-  googleClientSecret: process.env["GOOGLE_CLIENT_SECRET"],
+  googleClientId: process.env["GOOGLE_CLIENT_ID"] ?? "",
+  googleClientSecret: process.env["GOOGLE_CLIENT_SECRET"] ?? "",
   // Admin Seed
   adminEmail: process.env["ADMIN_EMAIL"] ?? "admin@foodhub.com",
   adminPassword: process.env["ADMIN_PASSWORD"] ?? "admin123"
@@ -34,11 +34,21 @@ import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
-var pool = new Pool({
-  connectionString: process.env["DATABASE_URL"]
-});
-var adapter = new PrismaPg(pool);
-var prisma = new PrismaClient({ adapter });
+var databaseUrl = process.env["DATABASE_URL"];
+if (!databaseUrl && process.env["NODE_ENV"] === "production") {
+  console.warn("\u26A0\uFE0F DATABASE_URL is missing in production environment!");
+}
+var prisma;
+if (databaseUrl) {
+  const pool = new Pool({
+    connectionString: databaseUrl
+  });
+  const adapter = new PrismaPg(pool);
+  prisma = new PrismaClient({ adapter });
+} else {
+  prisma = new PrismaClient();
+  console.warn("\u26A0\uFE0F DATABASE_URL is missing. Prisma initialized without driver adapter.");
+}
 var prisma_default = prisma;
 
 // src/lib/auth.ts
@@ -2877,6 +2887,13 @@ var healthPayload = () => ({
   timestamp: (/* @__PURE__ */ new Date()).toISOString(),
   environment: config.nodeEnv,
   allowedOrigin: config.frontendUrl
+});
+app.get("/", (_req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "FoodHub API is live",
+    docs: "/api/docs"
+  });
 });
 app.get("/health", (_req, res) => {
   res.status(200).json(healthPayload());

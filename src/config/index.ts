@@ -6,18 +6,18 @@ export const config = {
     nodeEnv: process.env["NODE_ENV"] ?? "development",
 
     // Database
-    databaseUrl: process.env["DATABASE_URL"]!,
+    databaseUrl: process.env["DATABASE_URL"] || "",
 
     // BetterAuth
-    betterAuthSecret: process.env["BETTER_AUTH_SECRET"]!,
-    betterAuthUrl: (process.env["BETTER_AUTH_URL"] ?? "http://localhost:5000").replace(/\/$/, "") + "/api/auth",
+    betterAuthSecret: process.env["BETTER_AUTH_SECRET"] ?? "",
+    betterAuthUrl: (process.env["BETTER_AUTH_URL"] ?? process.env["VERCEL_URL"] ? `https://${process.env["VERCEL_URL"]}` : "http://localhost:5000").replace(/\/$/, "") + "/api/auth",
 
     // CORS
     frontendUrl: (process.env["FRONTEND_URL"] ?? "http://localhost:3000").replace(/\/$/, ""),
 
     // Google Auth
-    googleClientId: process.env["GOOGLE_CLIENT_ID"],
-    googleClientSecret: process.env["GOOGLE_CLIENT_SECRET"],
+    googleClientId: process.env["GOOGLE_CLIENT_ID"] ?? "",
+    googleClientSecret: process.env["GOOGLE_CLIENT_SECRET"] ?? "",
 
     // Admin Seed
     adminEmail: process.env["ADMIN_EMAIL"] ?? "admin@foodhub.com",

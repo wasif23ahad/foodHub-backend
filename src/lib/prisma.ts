@@ -3,17 +3,24 @@ import { PrismaClient } from "@prisma/client";
 import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 
-const connectionString = process.env["DATABASE_URL"];
+const databaseUrl = process.env["DATABASE_URL"];
 
-if (!connectionString && process.env["NODE_ENV"] === "production") {
+if (!databaseUrl && process.env["NODE_ENV"] === "production") {
     console.warn("⚠️ DATABASE_URL is missing in production environment!");
 }
 
-const pool = new Pool({
-    connectionString: connectionString || "",
-});
+let prisma: PrismaClient;
 
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
+if (databaseUrl) {
+    const pool = new Pool({
+        connectionString: databaseUrl,
+    });
+    const adapter = new PrismaPg(pool);
+    prisma = new PrismaClient({ adapter });
+} else {
+    // Fallback for build time or missing env cases
+    prisma = new PrismaClient();
+    console.warn("⚠️ DATABASE_URL is missing. Prisma initialized without driver adapter.");
+}
 
 export default prisma;

@@ -6,6 +6,7 @@ import {
     userListQuerySchema,
     banUserSchema,
     userIdParamSchema,
+    providerIdParamSchema,
     adminOrderQuerySchema,
 } from "../validations/admin.validation";
 import {
@@ -13,6 +14,7 @@ import {
     updateCategorySchema,
     categoryIdParamSchema,
 } from "../validations/category.validation";
+import { mealQuerySchema, mealIdParamSchema } from "../validations/meal.validation";
 
 const router: IRouter = Router();
 
@@ -56,6 +58,42 @@ router.patch(
     validateParams(userIdParamSchema),
     validateBody(banUserSchema),
     adminController.banUser
+);
+
+// Delete a user
+router.delete(
+    "/users/:id",
+    validateParams(userIdParamSchema),
+    adminController.deleteUser
+);
+
+// ─────────────────────────────────────────────────────────────
+// PROVIDER MANAGEMENT
+// ─────────────────────────────────────────────────────────────
+
+// Delete a provider
+router.delete(
+    "/providers/:id",
+    validateParams(providerIdParamSchema),
+    adminController.deleteProvider
+);
+
+// ─────────────────────────────────────────────────────────────
+// MEAL MANAGEMENT
+// ─────────────────────────────────────────────────────────────
+
+// Get all meals
+router.get(
+    "/meals",
+    validateQuery(mealQuerySchema),
+    adminController.getAllMeals
+);
+
+// Delete a meal
+router.delete(
+    "/meals/:id",
+    validateParams(mealIdParamSchema),
+    adminController.deleteMeal
 );
 
 // ─────────────────────────────────────────────────────────────

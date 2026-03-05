@@ -100,3 +100,76 @@ export const getDashboardStats = async (
         next(error);
     }
 };
+
+/**
+ * DELETE /api/admin/users/:id
+ * Delete a user
+ */
+export const deleteUser = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> => {
+    try {
+        const adminId = req.user!.id;
+        const userId = req.params["id"] as string;
+        const result = await adminService.deleteUser(adminId, userId);
+        sendSuccess(res, result, result.message);
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * DELETE /api/admin/providers/:id
+ * Delete a provider profile
+ */
+export const deleteProvider = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> => {
+    try {
+        const providerId = req.params["id"] as string;
+        const result = await adminService.deleteProvider(providerId);
+        sendSuccess(res, result, result.message);
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * GET /api/admin/meals
+ * Get all meals for admin
+ */
+export const getAllMeals = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> => {
+    try {
+        const query = res.locals["validatedQuery"] || req.query;
+        const result = await adminService.getAllMeals(query);
+        sendSuccess(res, result.meals, "Meals fetched successfully", 200, result.meta);
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * DELETE /api/admin/meals/:id
+ * Delete a meal
+ */
+export const deleteMeal = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> => {
+    try {
+        const mealId = req.params["id"] as string;
+        const result = await adminService.deleteMeal(mealId);
+        sendSuccess(res, result, result.message);
+    } catch (error) {
+        next(error);
+    }
+};

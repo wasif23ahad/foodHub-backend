@@ -10,8 +10,10 @@ import { sendSuccess, sendError } from "../utils/response.util";
 const router: Router = Router();
 
 // Ensure uploads directory exists
-const uploadDir = path.join(process.cwd(), "uploads");
-if (!fs.existsSync(uploadDir)) {
+const isVercel = process.env["VERCEL"] === "1";
+const uploadDir = isVercel ? "/tmp" : path.join(process.cwd(), "uploads");
+
+if (!isVercel && !fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
 

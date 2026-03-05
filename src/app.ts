@@ -77,6 +77,13 @@ const healthPayload = () => ({
     environment: config.nodeEnv,
     allowedOrigin: config.frontendUrl,
 });
+app.get("/", (_req: Request, res: Response) => {
+    res.status(200).json({
+        success: true,
+        message: "FoodHub API is live",
+        docs: "/api/docs"
+    });
+});
 app.get("/health", (_req: Request, res: Response) => {
     res.status(200).json(healthPayload());
 });

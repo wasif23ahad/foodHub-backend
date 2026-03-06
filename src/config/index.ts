@@ -10,10 +10,10 @@ export const config = {
 
     // BetterAuth
     betterAuthSecret: process.env["BETTER_AUTH_SECRET"] ?? "",
-    betterAuthUrl: (process.env["BETTER_AUTH_URL"] || (process.env["VERCEL_URL"] ? `https://${process.env["VERCEL_URL"]}` : "http://localhost:5000")).replace(/\/$/, "") + "/api/auth",
+    betterAuthUrl: (process.env["BETTER_AUTH_URL"] || "https://foodhub-backend-silk.vercel.app").replace(/\/$/, "") + "/api/auth",
 
     // CORS
-    frontendUrl: (process.env["FRONTEND_URL"] ?? "http://localhost:3000").replace(/\/$/, ""),
+    frontendUrl: (process.env["FRONTEND_URL"] || "https://foodhub-frontend-sand.vercel.app").replace(/\/$/, ""),
 
     // Google Auth
     googleClientId: process.env["GOOGLE_CLIENT_ID"] ?? "",

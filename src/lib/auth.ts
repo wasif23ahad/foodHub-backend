@@ -10,11 +10,10 @@ import { config } from "../config";
 
 export const auth = betterAuth({
     // Base URL for auth endpoints
-    // CRITICAL FIX: Since the frontend Next.js app proxies ALL `/api` traffic to the backend,
-    // BetterAuth MUST think its base URL is the frontend. This ensures Google OAuth generates
-    // redirect_uris pointing to the frontend domain (setting the cookie as a first-party cookie!)
-    // and ignores Vercel's random deployment URLs.
-    baseURL: config.frontendUrl + "/api/auth",
+    // CRITICAL FIX: To prevent the Google `redirect_uri_mismatch` on Vercel,
+    // BetterAuth MUST tell Google its true backend origin. This allows the Google 
+    // Console Authorized URIs to perfectly match `https://foodhub-backend-silk...`
+    baseURL: config.betterAuthUrl + "/api/auth",
 
     // Secret for signing tokens/cookies
     secret: config.betterAuthSecret,

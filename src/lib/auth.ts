@@ -10,10 +10,9 @@ import { config } from "../config";
 
 export const auth = betterAuth({
     // Base URL for auth endpoints
-    // CRITICAL FIX: To prevent the Google `state_mismatch` cookie error on Vercel,
-    // Google MUST redirect straight back to the backend. The frontend will make
-    // direct cross-origin requests to the backend so the state cookie is saved as first-party.
-    baseURL: config.betterAuthUrl + "/api/auth",
+    // CRITICAL FIX: Since the frontend proxies the auth logic, the backend
+    // MUST identify its base URL as the frontend otherwise cookies are cross-domain matched.
+    baseURL: config.frontendUrl + "/api/auth",
 
     // Secret for signing tokens/cookies
     secret: config.betterAuthSecret,

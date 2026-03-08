@@ -18,14 +18,14 @@ const app: Application = express();
 
 // Trust the Next.js and Vercel proxy headers (X-Forwarded-Host).
 // This is critical for BetterAuth to recognize the OAuth proxy flow and prevent state mismatch.
-app.set("trust proxy", 1);
+//app.set("trust proxy", 1);
 
 // ======================
 // CORS - First middleware: set headers ourselves so we NEVER send *
 // (Vercel or cors package may send * otherwise when credentials: true)
 // ======================
 const ALLOWED_ORIGINS = [
-    config.frontendUrl,
+    //config.frontendUrl,
     "https://foodhub-frontend-sand.vercel.app",
     "http://localhost:3000",
     "http://localhost:5000"

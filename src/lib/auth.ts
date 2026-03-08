@@ -40,6 +40,7 @@ export const auth = betterAuth({
         google: {
             clientId: config.googleClientId || "",
             clientSecret: config.googleClientSecret || "",
+            redirectURI: `https://foodhub-frontend-sand.vercel.app/auth/google/callback`,
         },
     },
 
@@ -107,7 +108,7 @@ export const auth = betterAuth({
     // TRUSTED ORIGINS (FRONTEND_URL + deployed URL for serverless)
     // ======================
     trustedOrigins: [
-        config.frontendUrl,
+        //config.frontendUrl,
         "https://foodhub-frontend-sand.vercel.app",
         "http://localhost:3000",
     ].filter(Boolean),

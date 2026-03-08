@@ -12,7 +12,7 @@ export const auth = betterAuth({
     // Base URL for auth endpoints
     // CRITICAL FIX: Since the frontend proxies the auth logic, the backend
     // MUST identify its base URL as the frontend otherwise cookies are cross-domain matched.
-    baseURL: config.frontendUrl + "/api/auth",
+    baseURL: config.betterAuthUrl,
 
     // Secret for signing tokens/cookies
     secret: config.betterAuthSecret,

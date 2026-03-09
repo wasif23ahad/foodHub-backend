@@ -10,14 +10,15 @@ http://localhost:5000/api
 
 ## Authentication
 
-All authenticated endpoints require a valid session token from Better Auth.
+All authenticated endpoints require an active session. BetterAuth uses **cookie-based sessions** — the session cookie is set automatically on sign-in and sent with every subsequent request.
 
-**Headers:**
+**Cookie (set automatically by browser/client):**
 
 ```
-Authorization: Bearer <session_token>
 Cookie: better-auth.session_token=<session_token>
 ```
+
+> **Note:** Bearer token authentication is not supported. The `token` value returned by the sign-in response is the session token stored in the cookie, not an Authorization header value.
 
 ---
 
@@ -391,9 +392,43 @@ Ban or unban a user. **[Admin Auth]**
 }
 ```
 
+### DELETE /api/admin/users/:id
+
+Permanently delete a user account. **[Admin Auth]**
+
+---
+
+## Providers (Admin)
+
+### DELETE /api/admin/providers/:id
+
+Delete a provider profile. **[Admin Auth]**
+
+---
+
+## Meals (Admin)
+
+### GET /api/admin/meals
+
+Get all meals platform-wide. **[Admin Auth]**
+
+Supports the same query parameters as `GET /api/meals` (search, categoryId, dietaryPreference, sort, page, limit).
+
+### DELETE /api/admin/meals/:id
+
+Delete any meal. **[Admin Auth]**
+
+---
+
+## Orders (Admin)
+
 ### GET /api/admin/orders
 
 Get all orders system-wide. **[Admin Auth]**
+
+---
+
+## Categories (Admin)
 
 ### POST /api/admin/categories
 
@@ -405,7 +440,27 @@ Update a category. **[Admin Auth]**
 
 ### DELETE /api/admin/categories/:id
 
-Delete a category (only if no meals). **[Admin Auth]**
+Delete a category (only if no meals are assigned to it). **[Admin Auth]**
+
+---
+
+## File Upload
+
+### POST /api/upload
+
+Upload an image file to Cloudinary. Returns the hosted image URL.
+
+**Request:** `multipart/form-data` with field name `file` (jpeg, jpg, png, gif, webp — max 5MB).
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": { "url": "https://res.cloudinary.com/..." },
+  "message": "File uploaded successfully to Cloudinary"
+}
+```
 
 ---
 

@@ -1,6 +1,5 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-// import { admin } from "better-auth/plugins";
 import prisma from "./prisma";
 import { config } from "../config";
 export const auth = betterAuth({
@@ -24,7 +23,7 @@ export const auth = betterAuth({
                 type: "string",
                 required: false,
                 defaultValue: "CUSTOMER",
-                input: true, // Allow setting during registration
+                input: true,
             },
             address: {
                 type: "string",
@@ -35,6 +34,17 @@ export const auth = betterAuth({
                 type: "string",
                 required: false,
                 input: true,
+            },
+            banned: {
+                type: "boolean",
+                required: false,
+                defaultValue: false,
+                input: false,
+            },
+            banReason: {
+                type: "string",
+                required: false,
+                input: false,
             },
         },
     },
@@ -67,5 +77,4 @@ export const auth = betterAuth({
     ].filter(Boolean),
 });
 
-// Export auth type for client
 export type Auth = typeof auth;

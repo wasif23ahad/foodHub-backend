@@ -3,52 +3,22 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 // import { admin } from "better-auth/plugins";
 import prisma from "./prisma";
 import { config } from "../config";
-
-// ======================
-// BETTER AUTH CONFIGURATION
-// ======================
-
 export const auth = betterAuth({
-    // Base URL for auth endpoints
-    // CRITICAL FIX: Since the frontend proxies the auth logic, the backend
-    // MUST identify its base URL as the frontend otherwise cookies are cross-domain matched.
     baseURL: config.betterAuthUrl,
 
-    // Secret for signing tokens/cookies
     secret: config.betterAuthSecret,
 
-    // ======================
-    // DATABASE ADAPTER
-    // ======================
     database: prismaAdapter(prisma, {
         provider: "postgresql",
     }),
 
-    // ======================
-    // EMAIL & PASSWORD AUTH
-    // ======================
     emailAndPassword: {
         enabled: true,
-        requireEmailVerification: false, // Simplified for assignment
+        requireEmailVerification: false,
         minPasswordLength: 6,
     },
 
-    // ======================
-    // SOCIAL PROVIDERS
-    // ======================
-    socialProviders: {
-        google: {
-            clientId: config.googleClientId || "",
-            clientSecret: config.googleClientSecret || "",
-            redirectURI: `https://foodhub-frontend-sand.vercel.app/auth/google/callback`,
-        },
-    },
-
-    // ======================
-    // USER CONFIGURATION
-    // ======================
     user: {
-        // Additional fields to store on user
         additionalFields: {
             role: {
                 type: "string",
@@ -69,34 +39,21 @@ export const auth = betterAuth({
         },
     },
 
-    // ======================
-    // SESSION CONFIGURATION
-    // ======================
     account: {
         skipStateCookieCheck: true,
     },
     session: {
-        expiresIn: 60 * 60 * 24 * 7, // 7 days
-        updateAge: 60 * 60 * 24, // Update session every 24 hours
+        expiresIn: 60 * 60 * 24 * 7,
+        updateAge: 60 * 60 * 24,
         cookieCache: {
             enabled: true,
-            maxAge: 60 * 5, // 5 minutes
+            maxAge: 60 * 5,
         },
     },
 
-    // ======================
-    // PLUGINS
-    // ======================
-    plugins: [
-        // Admin plugin for user management
-        // Admin plugin removed to allow public role changes
-    ],
+    plugins: [],
 
-    // ======================
-    // ADVANCED OPTIONS
-    // ======================
     advanced: {
-        // Use secure cookies in production
         useSecureCookies: config.nodeEnv === "production",
         defaultCookieAttributes: {
             sameSite: config.nodeEnv === "production" ? "none" : "lax",
@@ -104,11 +61,7 @@ export const auth = betterAuth({
         },
     },
 
-    // ======================
-    // TRUSTED ORIGINS (FRONTEND_URL + deployed URL for serverless)
-    // ======================
     trustedOrigins: [
-        //config.frontendUrl,
         "https://foodhub-frontend-sand.vercel.app",
         "http://localhost:3000",
     ].filter(Boolean),

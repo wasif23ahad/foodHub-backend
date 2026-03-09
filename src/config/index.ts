@@ -15,9 +15,6 @@ export const config = {
     // CORS
     frontendUrl: (process.env["FRONTEND_URL"] || "https://foodhub-frontend-sand.vercel.app").replace(/\/$/, ""),
 
-    // Google Auth
-    googleClientId: process.env["GOOGLE_CLIENT_ID"] ?? "",
-    googleClientSecret: process.env["GOOGLE_CLIENT_SECRET"] ?? "",
 
     // Admin Seed
     adminEmail: process.env["ADMIN_EMAIL"] ?? "admin@foodhub.com",

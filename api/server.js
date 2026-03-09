@@ -14,12 +14,9 @@ var config = {
   databaseUrl: process.env["DATABASE_URL"] || "",
   // BetterAuth
   betterAuthSecret: process.env["BETTER_AUTH_SECRET"] ?? "",
-  betterAuthUrl: (process.env["BETTER_AUTH_URL"] ?? process.env["VERCEL_URL"] ? `https://${process.env["VERCEL_URL"]}` : "http://localhost:5000").replace(/\/$/, "") + "/api/auth",
+  betterAuthUrl: (process.env["BETTER_AUTH_URL"] || "https://foodhub-backend-silk.vercel.app").replace(/\/$/, "") + "/api/auth",
   // CORS
-  frontendUrl: (process.env["FRONTEND_URL"] ?? "http://localhost:3000").replace(/\/$/, ""),
-  // Google Auth
-  googleClientId: process.env["GOOGLE_CLIENT_ID"] ?? "",
-  googleClientSecret: process.env["GOOGLE_CLIENT_SECRET"] ?? "",
+  frontendUrl: (process.env["FRONTEND_URL"] || "https://foodhub-frontend-sand.vercel.app").replace(/\/$/, ""),
   // Admin Seed
   adminEmail: process.env["ADMIN_EMAIL"] ?? "admin@foodhub.com",
   adminPassword: process.env["ADMIN_PASSWORD"] ?? "admin123"
@@ -39,21 +36,33 @@ if (!databaseUrl && process.env["NODE_ENV"] === "production") {
   console.warn("\u26A0\uFE0F DATABASE_URL is missing in production environment!");
 }
 var prisma;
-if (databaseUrl) {
-  const pool = new Pool({
-    connectionString: databaseUrl
-  });
-  const adapter = new PrismaPg(pool);
-  prisma = new PrismaClient({ adapter });
-} else {
+try {
+  if (databaseUrl) {
+    const pool = new Pool({
+      connectionString: databaseUrl,
+      max: 10,
+      idleTimeoutMillis: 3e4,
+      connectionTimeoutMillis: 2e3
+    });
+    const adapter = new PrismaPg(pool);
+    prisma = new PrismaClient({ adapter });
+  } else {
+    prisma = new PrismaClient();
+    if (process.env["NODE_ENV"] === "production") {
+      console.error("\u274C DATABASE_URL is missing in production!");
+    }
+  }
+} catch (error) {
+  console.error("\u274C Prisma initialization error:", error);
   prisma = new PrismaClient();
-  console.warn("\u26A0\uFE0F DATABASE_URL is missing. Prisma initialized without driver adapter.");
 }
 var prisma_default = prisma;
 
 // src/lib/auth.ts
 var auth = betterAuth({
   // Base URL for auth endpoints
+  // CRITICAL FIX: Since the frontend proxies the auth logic, the backend
+  // MUST identify its base URL as the frontend otherwise cookies are cross-domain matched.
   baseURL: config.betterAuthUrl,
   // Secret for signing tokens/cookies
   secret: config.betterAuthSecret,
@@ -71,15 +80,6 @@ var auth = betterAuth({
     requireEmailVerification: false,
     // Simplified for assignment
     minPasswordLength: 6
-  },
-  // ======================
-  // SOCIAL PROVIDERS
-  // ======================
-  socialProviders: {
-    google: {
-      clientId: config.googleClientId || "",
-      clientSecret: config.googleClientSecret || ""
-    }
   },
   // ======================
   // USER CONFIGURATION
@@ -109,6 +109,9 @@ var auth = betterAuth({
   // ======================
   // SESSION CONFIGURATION
   // ======================
+  account: {
+    skipStateCookieCheck: true
+  },
   session: {
     expiresIn: 60 * 60 * 24 * 7,
     // 7 days
@@ -132,13 +135,17 @@ var auth = betterAuth({
   // ======================
   advanced: {
     // Use secure cookies in production
-    useSecureCookies: config.nodeEnv === "production"
+    useSecureCookies: config.nodeEnv === "production",
+    defaultCookieAttributes: {
+      sameSite: config.nodeEnv === "production" ? "none" : "lax",
+      secure: config.nodeEnv === "production"
+    }
   },
   // ======================
   // TRUSTED ORIGINS (FRONTEND_URL + deployed URL for serverless)
   // ======================
   trustedOrigins: [
-    config.frontendUrl,
+    //config.frontendUrl,
     "https://foodhub-frontend-sand.vercel.app",
     "http://localhost:3000"
   ].filter(Boolean)
@@ -2848,7 +2855,7 @@ var __filename = fileURLToPath(import.meta.url);
 var __dirname = path2.dirname(__filename);
 var app = express();
 var ALLOWED_ORIGINS = [
-  config.frontendUrl,
+  //config.frontendUrl,
   "https://foodhub-frontend-sand.vercel.app",
   "http://localhost:3000",
   "http://localhost:5000"
@@ -2938,17 +2945,17 @@ async function startServer() {
     process.exit(1);
   }
 }
-process.on("SIGINT", async () => {
-  console.log("\n\u{1F6D1} Shutting down gracefully...");
-  await prisma_default.$disconnect();
-  process.exit(0);
-});
-process.on("SIGTERM", async () => {
-  console.log("\n\u{1F6D1} Shutting down gracefully...");
-  await prisma_default.$disconnect();
-  process.exit(0);
-});
 if (process.env["VERCEL"] !== "1") {
+  process.on("SIGINT", async () => {
+    console.log("\n\u{1F6D1} Shutting down gracefully...");
+    await prisma_default.$disconnect();
+    process.exit(0);
+  });
+  process.on("SIGTERM", async () => {
+    console.log("\n\u{1F6D1} Shutting down gracefully...");
+    await prisma_default.$disconnect();
+    process.exit(0);
+  });
   startServer();
 }
 var server_default = app_default;

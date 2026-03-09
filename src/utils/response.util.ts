@@ -1,8 +1,6 @@
 import { Response } from "express";
 
-// ═══════════════════════════════════════════════════════════
 // STANDARD API RESPONSE FORMAT
-// ═══════════════════════════════════════════════════════════
 
 interface SuccessResponse<T> {
     success: true;
@@ -22,9 +20,7 @@ interface ErrorResponse {
     errors?: Record<string, string[]>;
 }
 
-// ═══════════════════════════════════════════════════════════
 // SUCCESS RESPONSE
-// ═══════════════════════════════════════════════════════════
 
 export const sendSuccess = <T>(
     res: Response,
@@ -46,9 +42,7 @@ export const sendSuccess = <T>(
     return res.status(statusCode).json(response);
 };
 
-// ═══════════════════════════════════════════════════════════
 // ERROR RESPONSE
-// ═══════════════════════════════════════════════════════════
 
 export const sendError = (
     res: Response,
@@ -68,9 +62,7 @@ export const sendError = (
     return res.status(statusCode).json(response);
 };
 
-// ═══════════════════════════════════════════════════════════
 // SHORTHAND HELPERS
-// ═══════════════════════════════════════════════════════════
 
 export const sendCreated = <T>(
     res: Response,

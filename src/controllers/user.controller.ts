@@ -5,10 +5,8 @@ import { sendSuccess } from "../utils/response.util";
 // Import types
 import "../types";
 
-// ═══════════════════════════════════════════════════════════
 // USER CONTROLLER
 // Handles user profile management endpoints
-// ═══════════════════════════════════════════════════════════
 
 /**
  * GET /api/user/profile

@@ -4,18 +4,8 @@ import * as providerService from "../services/provider.service";
 import { sendSuccess, sendCreated, sendNoContent } from "../utils/response.util";
 import { NotFoundError } from "../utils/AppError";
 
-// Import types
 import "../types";
 
-// ═══════════════════════════════════════════════════════════
-// MEAL CONTROLLER
-// Handles HTTP requests for meal management
-// ═══════════════════════════════════════════════════════════
-
-/**
- * POST /api/provider/meals
- * Create a new meal (Provider only)
- */
 export const createMeal = async (
     req: Request,
     res: Response,
@@ -23,7 +13,6 @@ export const createMeal = async (
 ): Promise<void> => {
     try {
         const userId = req.user!.id;
-        // Get provider profile ID
         const profile = await providerService.getProfileByUserId(userId);
         const meal = await mealService.createMeal(profile.id, req.body);
         sendCreated(res, meal, "Meal created successfully");
@@ -32,17 +21,12 @@ export const createMeal = async (
     }
 };
 
-/**
- * GET /api/meals
- * Get all meals with filters (Public)
- */
 export const getMeals = async (
     req: Request,
     res: Response,
     next: NextFunction
 ): Promise<void> => {
     try {
-        // Use validated query from res.locals (set by validateQuery middleware)
         const query = res.locals["validatedQuery"] || req.query;
         const result = await mealService.getMeals(query);
         sendSuccess(res, result.meals, "Meals fetched successfully", 200, result.meta);

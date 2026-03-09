@@ -1,8 +1,6 @@
 import { Role } from "@prisma/client";
 
-// ═══════════════════════════════════════════════════════════
 // EXTEND EXPRESS REQUEST TYPE
-// ═══════════════════════════════════════════════════════════
 
 export interface AuthUser {
     id: string;

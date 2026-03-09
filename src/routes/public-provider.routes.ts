@@ -5,10 +5,8 @@ import { providerQuerySchema, providerIdParamSchema } from "../validations/publi
 
 const router: IRouter = Router();
 
-// ═══════════════════════════════════════════════════════════
 // PUBLIC PROVIDER ROUTES
 // /api/providers/*
-// ═══════════════════════════════════════════════════════════
 
 // Get all active providers (Public)
 router.get(

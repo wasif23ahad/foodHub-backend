@@ -5,10 +5,8 @@ import { sendSuccess, sendCreated, sendNoContent } from "../utils/response.util"
 // Import types
 import "../types";
 
-// ═══════════════════════════════════════════════════════════
 // CATEGORY CONTROLLER
 // Handles HTTP requests for category management
-// ═══════════════════════════════════════════════════════════
 
 /**
  * GET /api/categories

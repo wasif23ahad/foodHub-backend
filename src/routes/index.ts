@@ -10,39 +10,16 @@ import userRoutes from "./user.routes";
 
 const router: IRouter = Router();
 
-// ═══════════════════════════════════════════════════════════
-// API ROUTES
-// All routes are prefixed with /api
-// ═══════════════════════════════════════════════════════════
-
-// User routes - /api/user/* (Authenticated users)
-router.use("/user", userRoutes);
-
-// Provider routes - /api/provider/* (Authenticated providers)
-router.use("/provider", providerRoutes);
-
-// Meal routes - /api/meals/* (Public)
-router.use("/meals", mealRoutes);
-
-// Order routes - /api/orders/* (Customer)
-router.use("/orders", orderRoutes);
-
-// Review routes - /api/reviews/*
-router.use("/reviews", reviewRoutes);
-
-// Admin routes - /api/admin/* (Admin only)
-router.use("/admin", adminRoutes);
-
-// Category routes - /api/categories/* (Public)
-router.use("/categories", categoryRoutes);
-
-// Public provider routes - /api/providers/* (Public)
-router.use("/providers", publicProviderRoutes);
-
 import uploadRoutes from "./upload.routes";
+
+router.use("/user", userRoutes);
+router.use("/provider", providerRoutes);
+router.use("/meals", mealRoutes);
+router.use("/orders", orderRoutes);
+router.use("/reviews", reviewRoutes);
+router.use("/admin", adminRoutes);
+router.use("/categories", categoryRoutes);
+router.use("/providers", publicProviderRoutes);
 router.use("/upload", uploadRoutes);
 
 export default router;
-
-// Last updated: Commit 20 - Polish & Documentation
-

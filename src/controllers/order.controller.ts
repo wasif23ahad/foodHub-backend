@@ -3,17 +3,7 @@ import * as orderService from "../services/order.service";
 import * as providerService from "../services/provider.service";
 import { sendSuccess, sendCreated } from "../utils/response.util";
 
-// Import types
 import "../types";
-
-// ═══════════════════════════════════════════════════════════
-// ORDER CONTROLLER
-// Handles HTTP requests for order management
-// ═══════════════════════════════════════════════════════════
-
-// ─────────────────────────────────────────────────────────────
-// PROVIDER ORDER ENDPOINTS
-// ─────────────────────────────────────────────────────────────
 
 /**
  * GET /api/provider/orders
@@ -74,10 +64,6 @@ export const updateOrderStatus = async (
         next(error);
     }
 };
-
-// ─────────────────────────────────────────────────────────────
-// CUSTOMER ORDER ENDPOINTS
-// ─────────────────────────────────────────────────────────────
 
 /**
  * POST /api/orders

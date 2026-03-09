@@ -2,10 +2,8 @@ import prisma from "../lib/prisma";
 import { NotFoundError } from "../utils/AppError";
 import type { UpdateProfileInput } from "../validations/user.validation";
 
-// ═══════════════════════════════════════════════════════════
 // USER SERVICE
 // Business logic for user profile management
-// ═══════════════════════════════════════════════════════════
 
 /**
  * Get user profile by ID

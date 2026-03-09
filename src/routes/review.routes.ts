@@ -11,10 +11,8 @@ import {
 
 const router: IRouter = Router();
 
-// ═══════════════════════════════════════════════════════════
 // REVIEW ROUTES
 // /api/reviews/*
-// ═══════════════════════════════════════════════════════════
 
 // Create a new review
 router.post(

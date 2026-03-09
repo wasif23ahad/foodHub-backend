@@ -2,10 +2,8 @@ import { Request, Response, NextFunction } from "express";
 import { ZodSchema, ZodError } from "zod";
 import { ValidationError } from "../utils/AppError";
 
-// ═══════════════════════════════════════════════════════════
 // ZOD VALIDATION MIDDLEWARE
 // Validates request body, query, or params against a Zod schema
-// ═══════════════════════════════════════════════════════════
 
 type ValidationTarget = "body" | "query" | "params";
 
@@ -68,9 +66,7 @@ export const validate = (
     };
 };
 
-// ═══════════════════════════════════════════════════════════
 // SHORTHAND VALIDATORS
-// ═══════════════════════════════════════════════════════════
 
 export const validateBody = (schema: ZodSchema) => validate(schema, { target: "body" });
 export const validateQuery = (schema: ZodSchema) => validate(schema, { target: "query" });

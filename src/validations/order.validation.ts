@@ -1,8 +1,6 @@
 import { z } from "zod";
 
-// ═══════════════════════════════════════════════════════════
 // ORDER VALIDATION SCHEMAS
-// ═══════════════════════════════════════════════════════════
 
 // OrderStatus enum values from Prisma schema
 const OrderStatusValues = ["PLACED", "PREPARING", "READY", "DELIVERED", "CANCELLED"] as const;

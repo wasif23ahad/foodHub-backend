@@ -2,10 +2,8 @@ import { Request, Response, NextFunction } from "express";
 import * as providerService from "../services/provider.service";
 import { sendSuccess } from "../utils/response.util";
 
-// ═══════════════════════════════════════════════════════════
 // PUBLIC PROVIDER CONTROLLER
 // Handles public provider browsing endpoints
-// ═══════════════════════════════════════════════════════════
 
 /**
  * GET /api/providers

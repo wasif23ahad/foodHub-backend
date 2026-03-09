@@ -2,13 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import * as adminService from "../services/admin.service";
 import { sendSuccess } from "../utils/response.util";
 
-// Import types
 import "../types";
-
-// ═══════════════════════════════════════════════════════════
-// ADMIN CONTROLLER
-// Handles HTTP requests for admin operations
-// ═══════════════════════════════════════════════════════════
 
 /**
  * GET /api/admin/users

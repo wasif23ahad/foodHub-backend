@@ -1,8 +1,6 @@
 import { z } from "zod";
 
-// ═══════════════════════════════════════════════════════════
 // PROVIDER PROFILE VALIDATION SCHEMAS
-// ═══════════════════════════════════════════════════════════
 
 // Create provider profile schema
 export const createProviderProfileSchema = z.object({

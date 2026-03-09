@@ -2,13 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import * as providerService from "../services/provider.service";
 import { sendSuccess, sendCreated } from "../utils/response.util";
 
-// Import types
 import "../types";
-
-// ═══════════════════════════════════════════════════════════
-// PROVIDER CONTROLLER
-// Handles HTTP requests for provider profile management
-// ═══════════════════════════════════════════════════════════
 
 /**
  * GET /api/provider/profile

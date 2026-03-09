@@ -1,6 +1,4 @@
-// ═══════════════════════════════════════════════════════════
 // CUSTOM ERROR CLASSES
-// ═══════════════════════════════════════════════════════════
 
 export class AppError extends Error {
     public readonly statusCode: number;
@@ -23,9 +21,7 @@ export class AppError extends Error {
     }
 }
 
-// ═══════════════════════════════════════════════════════════
 // SPECIFIC ERROR TYPES
-// ═══════════════════════════════════════════════════════════
 
 export class NotFoundError extends AppError {
     constructor(message: string = "Resource not found") {

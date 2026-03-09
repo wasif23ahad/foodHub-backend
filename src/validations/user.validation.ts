@@ -1,8 +1,6 @@
 import { z } from "zod";
 
-// ═══════════════════════════════════════════════════════════
 // USER PROFILE VALIDATION SCHEMAS
-// ═══════════════════════════════════════════════════════════
 
 // Update profile schema
 export const updateProfileSchema = z.object({

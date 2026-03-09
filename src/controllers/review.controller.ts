@@ -2,13 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import * as reviewService from "../services/review.service";
 import { sendSuccess, sendCreated, sendNoContent } from "../utils/response.util";
 
-// Import types
 import "../types";
-
-// ═══════════════════════════════════════════════════════════
-// REVIEW CONTROLLER
-// Handles HTTP requests for review management
-// ═══════════════════════════════════════════════════════════
 
 /**
  * POST /api/orders/:id/reviews

@@ -5,18 +5,14 @@ import { updateProfileSchema } from "../validations/user.validation";
 
 const router: IRouter = Router();
 
-// ═══════════════════════════════════════════════════════════
 // USER ROUTES
 // /api/user/*
 // All routes require authentication
-// ═══════════════════════════════════════════════════════════
 
 // Apply auth middleware to all routes
 router.use(requireAuth);
 
-// ─────────────────────────────────────────────────────────────
 // PROFILE MANAGEMENT
-// ─────────────────────────────────────────────────────────────
 
 // Get current user's profile
 router.get("/profile", userController.getProfile);
@@ -28,9 +24,7 @@ router.patch(
     userController.updateProfile
 );
 
-// ─────────────────────────────────────────────────────────────
 // USER DASHBOARD
-// ─────────────────────────────────────────────────────────────
 
 // Get user dashboard stats
 router.get("/dashboard", userController.getDashboard);

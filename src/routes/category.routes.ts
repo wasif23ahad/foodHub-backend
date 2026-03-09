@@ -5,10 +5,8 @@ import { categoryQuerySchema, categoryIdParamSchema } from "../validations/categ
 
 const router: IRouter = Router();
 
-// ═══════════════════════════════════════════════════════════
 // PUBLIC CATEGORY ROUTES
 // /api/categories/*
-// ═══════════════════════════════════════════════════════════
 
 // Get all categories (Public)
 router.get(

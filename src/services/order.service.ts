@@ -1,11 +1,6 @@
 import prisma from "../lib/prisma";
 import { NotFoundError, ForbiddenError, BadRequestError } from "../utils/AppError";
-import type { CreateOrderInput, UpdateOrderStatusInput, OrderQueryInput, OrderStatusEnum } from "../validations/order.validation";
-
-// ═══════════════════════════════════════════════════════════
-// ORDER SERVICE
-// Business logic for order management
-// ═══════════════════════════════════════════════════════════
+import type { CreateOrderInput, UpdateOrderStatusInput, OrderQueryInput } from "../validations/order.validation";
 
 // Valid status transitions for providers
 const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {

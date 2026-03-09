@@ -2,10 +2,8 @@ import prisma from "../lib/prisma";
 import { NotFoundError, ConflictError, BadRequestError } from "../utils/AppError";
 import type { CreateCategoryInput, UpdateCategoryInput, CategoryQueryInput } from "../validations/category.validation";
 
-// ═══════════════════════════════════════════════════════════
 // CATEGORY SERVICE
 // Business logic for category management
-// ═══════════════════════════════════════════════════════════
 
 /**
  * Get all categories with optional filters

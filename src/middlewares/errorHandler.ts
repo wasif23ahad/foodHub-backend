@@ -3,9 +3,7 @@ import { AppError } from "../utils/AppError";
 import { sendError } from "../utils/response.util";
 import { config } from "../config";
 
-// ═══════════════════════════════════════════════════════════
 // GLOBAL ERROR HANDLER MIDDLEWARE
-// ═══════════════════════════════════════════════════════════
 
 export const errorHandler = (
     err: Error | AppError,

@@ -2,10 +2,8 @@ import prisma from "../lib/prisma";
 import { NotFoundError, ConflictError } from "../utils/AppError";
 import type { CreateProviderProfileInput, UpdateProviderProfileInput } from "../validations/provider.validation";
 
-// ═══════════════════════════════════════════════════════════
 // PROVIDER SERVICE
 // Business logic for provider profile management
-// ═══════════════════════════════════════════════════════════
 
 /**
  * Get provider profile by user ID

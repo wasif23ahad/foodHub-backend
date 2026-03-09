@@ -11,12 +11,6 @@ import * as reviewController from "../controllers/review.controller";
 
 const router: IRouter = Router();
 
-// ═══════════════════════════════════════════════════════════
-// CUSTOMER ORDER ROUTES
-// /api/orders/*
-// ═══════════════════════════════════════════════════════════
-
-// Create a new order (any authenticated user can order)
 router.post(
     "/",
     requireAuth,
@@ -24,7 +18,6 @@ router.post(
     orderController.createOrder
 );
 
-// Get customer's orders
 router.get(
     "/",
     requireAuth,
@@ -32,7 +25,6 @@ router.get(
     orderController.getCustomerOrders
 );
 
-// Get specific order details
 router.get(
     "/:id",
     requireAuth,
@@ -40,7 +32,6 @@ router.get(
     orderController.getCustomerOrderById
 );
 
-// Cancel an order (only if PLACED)
 router.patch(
     "/:id/cancel",
     requireAuth,
@@ -48,7 +39,6 @@ router.patch(
     orderController.cancelOrder
 );
 
-// Rate an order
 router.post(
     "/:id/reviews",
     requireAuth,

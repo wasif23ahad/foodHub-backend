@@ -1,8 +1,6 @@
 import { z } from "zod";
 
-// ═══════════════════════════════════════════════════════════
 // ADMIN VALIDATION SCHEMAS
-// ═══════════════════════════════════════════════════════════
 
 // Role values from Prisma schema
 const RoleValues = ["CUSTOMER", "PROVIDER", "ADMIN"] as const;

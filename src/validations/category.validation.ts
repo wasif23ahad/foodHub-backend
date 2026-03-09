@@ -1,8 +1,6 @@
 import { z } from "zod";
 
-// ═══════════════════════════════════════════════════════════
 // CATEGORY VALIDATION SCHEMAS
-// ═══════════════════════════════════════════════════════════
 
 // Create category schema
 export const createCategorySchema = z.object({

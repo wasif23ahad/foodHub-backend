@@ -18,119 +18,30 @@ import { mealQuerySchema, mealIdParamSchema } from "../validations/meal.validati
 
 const router: IRouter = Router();
 
-// ═══════════════════════════════════════════════════════════
-// ADMIN ROUTES
-// /api/admin/*
-// All routes require admin role
-// ═══════════════════════════════════════════════════════════
-
-// Apply auth + admin middleware to all routes
 router.use(requireAuth, requireAdmin);
 
-// ─────────────────────────────────────────────────────────────
-// DASHBOARD
-// ─────────────────────────────────────────────────────────────
-
-// Get dashboard statistics
+// Dashboard
 router.get("/dashboard", adminController.getDashboardStats);
 
-// ─────────────────────────────────────────────────────────────
-// USER MANAGEMENT
-// ─────────────────────────────────────────────────────────────
+// Users
+router.get("/users", validateQuery(userListQuerySchema), adminController.getUsers);
+router.get("/users/:id", validateParams(userIdParamSchema), adminController.getUserById);
+router.patch("/users/:id/ban", validateParams(userIdParamSchema), validateBody(banUserSchema), adminController.banUser);
+router.delete("/users/:id", validateParams(userIdParamSchema), adminController.deleteUser);
 
-// Get all users with filters
-router.get(
-    "/users",
-    validateQuery(userListQuerySchema),
-    adminController.getUsers
-);
+// Providers
+router.delete("/providers/:id", validateParams(providerIdParamSchema), adminController.deleteProvider);
 
-// Get user by ID
-router.get(
-    "/users/:id",
-    validateParams(userIdParamSchema),
-    adminController.getUserById
-);
+// Meals
+router.get("/meals", validateQuery(mealQuerySchema), adminController.getAllMeals);
+router.delete("/meals/:id", validateParams(mealIdParamSchema), adminController.deleteMeal);
 
-// Ban or unban a user
-router.patch(
-    "/users/:id/ban",
-    validateParams(userIdParamSchema),
-    validateBody(banUserSchema),
-    adminController.banUser
-);
+// Orders
+router.get("/orders", validateQuery(adminOrderQuerySchema), adminController.getAllOrders);
 
-// Delete a user
-router.delete(
-    "/users/:id",
-    validateParams(userIdParamSchema),
-    adminController.deleteUser
-);
-
-// ─────────────────────────────────────────────────────────────
-// PROVIDER MANAGEMENT
-// ─────────────────────────────────────────────────────────────
-
-// Delete a provider
-router.delete(
-    "/providers/:id",
-    validateParams(providerIdParamSchema),
-    adminController.deleteProvider
-);
-
-// ─────────────────────────────────────────────────────────────
-// MEAL MANAGEMENT
-// ─────────────────────────────────────────────────────────────
-
-// Get all meals
-router.get(
-    "/meals",
-    validateQuery(mealQuerySchema),
-    adminController.getAllMeals
-);
-
-// Delete a meal
-router.delete(
-    "/meals/:id",
-    validateParams(mealIdParamSchema),
-    adminController.deleteMeal
-);
-
-// ─────────────────────────────────────────────────────────────
-// ORDER MONITORING
-// ─────────────────────────────────────────────────────────────
-
-// Get all orders
-router.get(
-    "/orders",
-    validateQuery(adminOrderQuerySchema),
-    adminController.getAllOrders
-);
-
-// ─────────────────────────────────────────────────────────────
-// CATEGORY MANAGEMENT
-// ─────────────────────────────────────────────────────────────
-
-// Create a new category
-router.post(
-    "/categories",
-    validateBody(createCategorySchema),
-    categoryController.createCategory
-);
-
-// Update a category
-router.put(
-    "/categories/:id",
-    validateParams(categoryIdParamSchema),
-    validateBody(updateCategorySchema),
-    categoryController.updateCategory
-);
-
-// Delete a category
-router.delete(
-    "/categories/:id",
-    validateParams(categoryIdParamSchema),
-    categoryController.deleteCategory
-);
+// Categories
+router.post("/categories", validateBody(createCategorySchema), categoryController.createCategory);
+router.put("/categories/:id", validateParams(categoryIdParamSchema), validateBody(updateCategorySchema), categoryController.updateCategory);
+router.delete("/categories/:id", validateParams(categoryIdParamSchema), categoryController.deleteCategory);
 
 export default router;

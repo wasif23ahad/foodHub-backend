@@ -3,10 +3,8 @@ import { NotFoundError, ForbiddenError, BadRequestError } from "../utils/AppErro
 import type { UserListQueryInput, BanUserInput, AdminOrderQueryInput } from "../validations/admin.validation";
 import type { MealQueryInput } from "../validations/meal.validation";
 
-// ═══════════════════════════════════════════════════════════
 // ADMIN SERVICE
 // Business logic for admin management operations
-// ═══════════════════════════════════════════════════════════
 
 /**
  * Get all users with filters and pagination

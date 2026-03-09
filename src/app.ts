@@ -13,19 +13,9 @@ import path from "path";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Create Express app
 const app: Application = express();
 
-// Trust the Next.js and Vercel proxy headers (X-Forwarded-Host).
-// This is critical for BetterAuth to recognize the OAuth proxy flow and prevent state mismatch.
-//app.set("trust proxy", 1);
-
-// ======================
-// CORS - First middleware: set headers ourselves so we NEVER send *
-// (Vercel or cors package may send * otherwise when credentials: true)
-// ======================
 const ALLOWED_ORIGINS = [
-    //config.frontendUrl,
     "https://foodhub-frontend-sand.vercel.app",
     "http://localhost:3000",
     "http://localhost:5000"
@@ -47,7 +37,6 @@ app.use((req: Request, res: Response, next) => {
     next();
 });
 
-// CORS package as backup (must not override our headers with *)
 const corsOptions: cors.CorsOptions = {
     origin: (origin, callback) => {
         if (!origin) return callback(null, ALLOWED_ORIGINS[0] ?? false);
@@ -60,20 +49,10 @@ const corsOptions: cors.CorsOptions = {
 };
 app.use(cors(corsOptions));
 
-// Static files are handled by Vercel's Edge Network
-// Local dev fallback is not needed if we rely on Vercel
-// const publicPath = path.join(process.cwd(), "public");
-// app.use(express.static(publicPath));
-
-// Request logging (dev mode only)
 if (config.nodeEnv === "development") {
     app.use(morgan("dev"));
 }
 
-// =====================================
-// HEALTH CHECK (before json middleware)
-// Local: GET /health. Vercel: only /api/* hits serverless, so also expose /api/health
-// =====================================
 const healthPayload = () => ({
     success: true,
     message: "FoodHub API is running",
@@ -81,6 +60,7 @@ const healthPayload = () => ({
     environment: config.nodeEnv,
     allowedOrigin: config.frontendUrl,
 });
+
 app.get("/", (_req: Request, res: Response) => {
     res.status(200).json({
         success: true,
@@ -88,39 +68,21 @@ app.get("/", (_req: Request, res: Response) => {
         docs: "/api/docs"
     });
 });
-app.get("/health", (_req: Request, res: Response) => {
-    res.status(200).json(healthPayload());
-});
-app.get("/api/health", (_req: Request, res: Response) => {
-    res.status(200).json(healthPayload());
-});
+app.get("/health", (_req: Request, res: Response) => res.status(200).json(healthPayload()));
+app.get("/api/health", (_req: Request, res: Response) => res.status(200).json(healthPayload()));
 
-// ========================================
-// BETTER AUTH HANDLER
-// Must be BEFORE express.json() middleware
-// ========================================
+// BetterAuth must be mounted before express.json()
 app.all("/api/auth/*path", toNodeHandler(auth));
 
-// JSON body parser (after BetterAuth, before other routes)
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ======================
-// API ROUTES
-// ======================
 app.use("/api", routes);
 
-// ======================
-// 404 HANDLER
-// ======================
 app.use((_req: Request, res: Response) => {
     sendNotFound(res, "Route not found");
 });
 
-// ======================
-// GLOBAL ERROR HANDLER
-// ======================
 app.use(errorHandler);
 
 export default app;
-

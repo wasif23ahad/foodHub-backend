@@ -1,8 +1,6 @@
 import { z } from "zod";
 
-// ═══════════════════════════════════════════════════════════
 // PUBLIC PROVIDER VALIDATION SCHEMAS
-// ═══════════════════════════════════════════════════════════
 
 // Query schema for listing providers
 export const providerQuerySchema = z.object({

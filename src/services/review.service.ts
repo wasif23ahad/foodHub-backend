@@ -2,10 +2,8 @@ import prisma from "../lib/prisma";
 import { NotFoundError, ForbiddenError, BadRequestError, ConflictError } from "../utils/AppError";
 import type { CreateReviewInput, UpdateReviewInput, ReviewQueryInput } from "../validations/review.validation";
 
-// ═══════════════════════════════════════════════════════════
 // REVIEW SERVICE
 // Business logic for review management
-// ═══════════════════════════════════════════════════════════
 
 /**
  * Create batch reviews for an order

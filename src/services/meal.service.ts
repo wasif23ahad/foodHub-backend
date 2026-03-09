@@ -2,11 +2,6 @@ import prisma from "../lib/prisma";
 import { NotFoundError, ForbiddenError } from "../utils/AppError";
 import type { CreateMealInput, UpdateMealInput, MealQueryInput } from "../validations/meal.validation";
 
-// ═══════════════════════════════════════════════════════════
-// MEAL SERVICE
-// Business logic for meal management
-// ═══════════════════════════════════════════════════════════
-
 /**
  * Create a new meal (Provider only)
  */
@@ -115,14 +110,6 @@ export const getMeals = async (query: MealQueryInput) => {
         prisma.meal.count({ where }),
     ]);
 
-    // Sort by rating or popularity if needed
-    // Note: rating sort is now handled by database index if possible, 
-    // but for simplicity/compatibility we can keep in-memory sort or switch to DB sort later.
-    // Since we now have avgRating in DB, we can sort by it directly if we wanted, 
-    // but the current implementation sorts after fetch for complex logic.
-    // However, we don't need to recalculate avgRating.
-
-    // Sort logic (if not handled by DB orderBy)
     let sortedMeals = meals;
     if (sort === "rating") {
         sortedMeals = [...meals].sort((a, b) => (b.avgRating || 0) - (a.avgRating || 0));

@@ -1,8 +1,6 @@
 import { z } from "zod";
 
-// ═══════════════════════════════════════════════════════════
 // MEAL VALIDATION SCHEMAS
-// ═══════════════════════════════════════════════════════════
 
 // Sort options for meals
 const SortOptions = ["price_asc", "price_desc", "newest", "oldest", "rating", "popular"] as const;

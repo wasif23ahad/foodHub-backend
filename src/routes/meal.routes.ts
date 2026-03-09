@@ -7,32 +7,8 @@ import { reviewQuerySchema, mealIdParamSchema as reviewMealIdParamSchema } from 
 
 const router: IRouter = Router();
 
-// ═══════════════════════════════════════════════════════════
-// PUBLIC MEAL ROUTES
-// /api/meals/*
-// ═══════════════════════════════════════════════════════════
-
-// Get all meals with filters (Public)
-router.get(
-    "/",
-    validateQuery(mealQuerySchema),
-    mealController.getMeals
-);
-
-// Get meal by ID (Public)
-router.get(
-    "/:id",
-    validateParams(mealIdParamSchema),
-    mealController.getMealById
-);
-
-// Get reviews for a specific meal (Public)
-router.get(
-    "/:mealId/reviews",
-    validateParams(reviewMealIdParamSchema),
-    validateQuery(reviewQuerySchema),
-    reviewController.getMealReviews
-);
+router.get("/", validateQuery(mealQuerySchema), mealController.getMeals);
+router.get("/:id", validateParams(mealIdParamSchema), mealController.getMealById);
+router.get("/:mealId/reviews", validateParams(reviewMealIdParamSchema), validateQuery(reviewQuerySchema), reviewController.getMealReviews);
 
 export default router;
-

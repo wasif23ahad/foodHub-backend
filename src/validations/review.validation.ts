@@ -1,8 +1,6 @@
 import { z } from "zod";
 
-// ═══════════════════════════════════════════════════════════
 // REVIEW VALIDATION SCHEMAS
-// ═══════════════════════════════════════════════════════════
 
 // Create review schema
 export const createReviewSchema = z.object({

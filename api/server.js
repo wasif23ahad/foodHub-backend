@@ -60,39 +60,23 @@ var prisma_default = prisma;
 
 // src/lib/auth.ts
 var auth = betterAuth({
-  // Base URL for auth endpoints
-  // CRITICAL FIX: Since the frontend proxies the auth logic, the backend
-  // MUST identify its base URL as the frontend otherwise cookies are cross-domain matched.
   baseURL: config.betterAuthUrl,
-  // Secret for signing tokens/cookies
   secret: config.betterAuthSecret,
-  // ======================
-  // DATABASE ADAPTER
-  // ======================
   database: prismaAdapter(prisma_default, {
     provider: "postgresql"
   }),
-  // ======================
-  // EMAIL & PASSWORD AUTH
-  // ======================
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false,
-    // Simplified for assignment
     minPasswordLength: 6
   },
-  // ======================
-  // USER CONFIGURATION
-  // ======================
   user: {
-    // Additional fields to store on user
     additionalFields: {
       role: {
         type: "string",
         required: false,
         defaultValue: "CUSTOMER",
         input: true
-        // Allow setting during registration
       },
       address: {
         type: "string",
@@ -103,49 +87,40 @@ var auth = betterAuth({
         type: "string",
         required: false,
         input: true
+      },
+      banned: {
+        type: "boolean",
+        required: false,
+        defaultValue: false,
+        input: false
+      },
+      banReason: {
+        type: "string",
+        required: false,
+        input: false
       }
     }
   },
-  // ======================
-  // SESSION CONFIGURATION
-  // ======================
   account: {
     skipStateCookieCheck: true
   },
   session: {
     expiresIn: 60 * 60 * 24 * 7,
-    // 7 days
     updateAge: 60 * 60 * 24,
-    // Update session every 24 hours
     cookieCache: {
       enabled: true,
       maxAge: 60 * 5
-      // 5 minutes
     }
   },
-  // ======================
-  // PLUGINS
-  // ======================
-  plugins: [
-    // Admin plugin for user management
-    // Admin plugin removed to allow public role changes
-  ],
-  // ======================
-  // ADVANCED OPTIONS
-  // ======================
+  plugins: [],
   advanced: {
-    // Use secure cookies in production
     useSecureCookies: config.nodeEnv === "production",
     defaultCookieAttributes: {
       sameSite: config.nodeEnv === "production" ? "none" : "lax",
       secure: config.nodeEnv === "production"
     }
   },
-  // ======================
-  // TRUSTED ORIGINS (FRONTEND_URL + deployed URL for serverless)
-  // ======================
   trustedOrigins: [
-    //config.frontendUrl,
     "https://foodhub-frontend-sand.vercel.app",
     "http://localhost:3000"
   ].filter(Boolean)
@@ -1341,76 +1316,16 @@ var orderIdParamSchema = z3.object({
 
 // src/routes/provider.routes.ts
 var router = Router();
-router.get(
-  "/profile",
-  requireAuth,
-  requireProvider,
-  getMyProfile
-);
-router.post(
-  "/profile",
-  requireAuth,
-  requireProvider,
-  validateBody(createProviderProfileSchema),
-  createProfile2
-);
-router.put(
-  "/profile",
-  requireAuth,
-  requireProvider,
-  validateBody(updateProviderProfileSchema),
-  updateMyProfile
-);
-router.get(
-  "/meals",
-  requireAuth,
-  requireProvider,
-  getMyMeals
-);
-router.post(
-  "/meals",
-  requireAuth,
-  requireProvider,
-  validateBody(createMealSchema),
-  createMeal2
-);
-router.put(
-  "/meals/:id",
-  requireAuth,
-  requireProvider,
-  validateParams(mealIdParamSchema),
-  validateBody(updateMealSchema),
-  updateMeal2
-);
-router.delete(
-  "/meals/:id",
-  requireAuth,
-  requireProvider,
-  validateParams(mealIdParamSchema),
-  deleteMeal2
-);
-router.get(
-  "/orders",
-  requireAuth,
-  requireProvider,
-  validateQuery(orderQuerySchema),
-  getProviderOrders2
-);
-router.get(
-  "/orders/:id",
-  requireAuth,
-  requireProvider,
-  validateParams(orderIdParamSchema),
-  getProviderOrderById2
-);
-router.patch(
-  "/orders/:id/status",
-  requireAuth,
-  requireProvider,
-  validateParams(orderIdParamSchema),
-  validateBody(updateOrderStatusSchema),
-  updateOrderStatus2
-);
+router.get("/profile", requireAuth, requireProvider, getMyProfile);
+router.post("/profile", requireAuth, requireProvider, validateBody(createProviderProfileSchema), createProfile2);
+router.put("/profile", requireAuth, requireProvider, validateBody(updateProviderProfileSchema), updateMyProfile);
+router.get("/meals", requireAuth, requireProvider, getMyMeals);
+router.post("/meals", requireAuth, requireProvider, validateBody(createMealSchema), createMeal2);
+router.put("/meals/:id", requireAuth, requireProvider, validateParams(mealIdParamSchema), validateBody(updateMealSchema), updateMeal2);
+router.delete("/meals/:id", requireAuth, requireProvider, validateParams(mealIdParamSchema), deleteMeal2);
+router.get("/orders", requireAuth, requireProvider, validateQuery(orderQuerySchema), getProviderOrders2);
+router.get("/orders/:id", requireAuth, requireProvider, validateParams(orderIdParamSchema), getProviderOrderById2);
+router.patch("/orders/:id/status", requireAuth, requireProvider, validateParams(orderIdParamSchema), validateBody(updateOrderStatusSchema), updateOrderStatus2);
 var provider_routes_default = router;
 
 // src/routes/meal.routes.ts
@@ -1732,22 +1647,9 @@ var reviewQuerySchema = z4.object({
 
 // src/routes/meal.routes.ts
 var router2 = Router2();
-router2.get(
-  "/",
-  validateQuery(mealQuerySchema),
-  getMeals2
-);
-router2.get(
-  "/:id",
-  validateParams(mealIdParamSchema),
-  getMealById2
-);
-router2.get(
-  "/:mealId/reviews",
-  validateParams(mealIdParamSchema2),
-  validateQuery(reviewQuerySchema),
-  getMealReviews2
-);
+router2.get("/", validateQuery(mealQuerySchema), getMeals2);
+router2.get("/:id", validateParams(mealIdParamSchema), getMealById2);
+router2.get("/:mealId/reviews", validateParams(mealIdParamSchema2), validateQuery(reviewQuerySchema), getMealReviews2);
 var meal_routes_default = router2;
 
 // src/routes/order.routes.ts
@@ -2428,63 +2330,17 @@ var categoryQuerySchema = z6.object({
 var router5 = Router5();
 router5.use(requireAuth, requireAdmin);
 router5.get("/dashboard", getDashboardStats2);
-router5.get(
-  "/users",
-  validateQuery(userListQuerySchema),
-  getUsers2
-);
-router5.get(
-  "/users/:id",
-  validateParams(userIdParamSchema),
-  getUserById2
-);
-router5.patch(
-  "/users/:id/ban",
-  validateParams(userIdParamSchema),
-  validateBody(banUserSchema),
-  banUser2
-);
-router5.delete(
-  "/users/:id",
-  validateParams(userIdParamSchema),
-  deleteUser2
-);
-router5.delete(
-  "/providers/:id",
-  validateParams(providerIdParamSchema),
-  deleteProvider2
-);
-router5.get(
-  "/meals",
-  validateQuery(mealQuerySchema),
-  getAllMeals2
-);
-router5.delete(
-  "/meals/:id",
-  validateParams(mealIdParamSchema),
-  deleteMeal4
-);
-router5.get(
-  "/orders",
-  validateQuery(adminOrderQuerySchema),
-  getAllOrders2
-);
-router5.post(
-  "/categories",
-  validateBody(createCategorySchema),
-  createCategory2
-);
-router5.put(
-  "/categories/:id",
-  validateParams(categoryIdParamSchema),
-  validateBody(updateCategorySchema),
-  updateCategory2
-);
-router5.delete(
-  "/categories/:id",
-  validateParams(categoryIdParamSchema),
-  deleteCategory2
-);
+router5.get("/users", validateQuery(userListQuerySchema), getUsers2);
+router5.get("/users/:id", validateParams(userIdParamSchema), getUserById2);
+router5.patch("/users/:id/ban", validateParams(userIdParamSchema), validateBody(banUserSchema), banUser2);
+router5.delete("/users/:id", validateParams(userIdParamSchema), deleteUser2);
+router5.delete("/providers/:id", validateParams(providerIdParamSchema), deleteProvider2);
+router5.get("/meals", validateQuery(mealQuerySchema), getAllMeals2);
+router5.delete("/meals/:id", validateParams(mealIdParamSchema), deleteMeal4);
+router5.get("/orders", validateQuery(adminOrderQuerySchema), getAllOrders2);
+router5.post("/categories", validateBody(createCategorySchema), createCategory2);
+router5.put("/categories/:id", validateParams(categoryIdParamSchema), validateBody(updateCategorySchema), updateCategory2);
+router5.delete("/categories/:id", validateParams(categoryIdParamSchema), deleteCategory2);
 var admin_routes_default = router5;
 
 // src/routes/category.routes.ts
@@ -2855,7 +2711,6 @@ var __filename = fileURLToPath(import.meta.url);
 var __dirname = path2.dirname(__filename);
 var app = express();
 var ALLOWED_ORIGINS = [
-  //config.frontendUrl,
   "https://foodhub-frontend-sand.vercel.app",
   "http://localhost:3000",
   "http://localhost:5000"
@@ -2903,12 +2758,8 @@ app.get("/", (_req, res) => {
     docs: "/api/docs"
   });
 });
-app.get("/health", (_req, res) => {
-  res.status(200).json(healthPayload());
-});
-app.get("/api/health", (_req, res) => {
-  res.status(200).json(healthPayload());
-});
+app.get("/health", (_req, res) => res.status(200).json(healthPayload()));
+app.get("/api/health", (_req, res) => res.status(200).json(healthPayload()));
 app.all("/api/auth/*path", toNodeHandler(auth));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

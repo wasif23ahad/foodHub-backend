@@ -199,6 +199,10 @@ export const createOrder = async (userId: string, data: CreateOrderInput) => {
         };
     });
 
+    // Add fixed delivery fee of 60 to the total order amount
+    // to match frontend checkout computations
+    totalAmount += 60;
+
     // Create order with items in a transaction
     const order = await prisma.order.create({
         data: {

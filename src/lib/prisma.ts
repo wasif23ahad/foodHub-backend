@@ -3,10 +3,15 @@ import { PrismaClient } from "@prisma/client";
 import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 
-const databaseUrl = process.env["DATABASE_URL"];
+// Workaround for Neon DB timeout issues in local dev
+const databaseUrl = process.env["DATABASE_URL"]?.replace("&channel_binding=require", "") || process.env["DATABASE_URL"];
 
 if (!databaseUrl && process.env["NODE_ENV"] === "production") {
     console.warn("⚠️ DATABASE_URL is missing in production environment!");
+}
+
+if (databaseUrl) {
+    process.env["DATABASE_URL"] = databaseUrl;
 }
 
 let prisma: PrismaClient;
@@ -17,19 +22,17 @@ try {
             connectionString: databaseUrl,
             max: 10,
             idleTimeoutMillis: 30000,
-            connectionTimeoutMillis: 2000,
+            connectionTimeoutMillis: 5000,
+            ssl: { rejectUnauthorized: false }
         });
+        // @ts-ignore
         const adapter = new PrismaPg(pool);
         prisma = new PrismaClient({ adapter });
     } else {
         prisma = new PrismaClient();
-        if (process.env["NODE_ENV"] === "production") {
-            console.error("❌ DATABASE_URL is missing in production!");
-        }
     }
 } catch (error) {
     console.error("❌ Prisma initialization error:", error);
-    // Absolute fallback: a plain client that might fail during requests but won't crash the module load
     prisma = new PrismaClient();
 }
 

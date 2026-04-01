@@ -16,15 +16,30 @@ if (isCloudinaryConfigured) {
 }
 
 /**
- * Uploads a local file to Cloudinary and deletes the local file.
+ * Uploads a local file or buffer to Cloudinary.
  * Returns null if Cloudinary is not configured.
  */
-export const uploadToCloudinary = async (localFilePath: string): Promise<string | null> => {
+export const uploadToCloudinary = async (fileInput: string | Buffer, originalName?: string): Promise<string | null> => {
     if (!isCloudinaryConfigured) {
         return null;
     }
 
     try {
+        if (Buffer.isBuffer(fileInput)) {
+            return new Promise((resolve, reject) => {
+                const uploadStream = cloudinary.uploader.upload_stream(
+                    { folder: "foodhub_uploads", resource_type: "auto" },
+                    (error, result) => {
+                        if (error) return reject(new Error("Failed to upload image buffer to Cloudinary"));
+                        resolve(result?.secure_url || null);
+                    }
+                );
+                uploadStream.end(fileInput);
+            });
+        }
+
+        // Handle string file path (legacy support)
+        const localFilePath = fileInput as string;
         const response = await cloudinary.uploader.upload(localFilePath, {
             folder: "foodhub_uploads",
             resource_type: "auto",
@@ -42,11 +57,13 @@ export const uploadToCloudinary = async (localFilePath: string): Promise<string 
         console.error("Cloudinary upload failed:", error);
         
         // Still try to delete local file on upload error to prevent disk space issues
-        try {
-            if (fs.existsSync(localFilePath)) {
-                fs.unlinkSync(localFilePath);
-            }
-        } catch (e) {}
+        if (typeof fileInput === "string") {
+            try {
+                if (fs.existsSync(fileInput)) {
+                    fs.unlinkSync(fileInput);
+                }
+            } catch (e) {}
+        }
 
         throw new Error("Failed to upload image to Cloudinary");
     }

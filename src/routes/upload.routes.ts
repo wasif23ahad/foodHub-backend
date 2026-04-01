@@ -18,7 +18,7 @@ if (!isVercel && !fs.existsSync(uploadDir)) {
 }
 
 // Configure Storage
-const storage = multer.diskStorage({
+const storage = process.env["VERCEL"] === "1" ? multer.memoryStorage() : multer.diskStorage({
     destination: (req, file, cb) => {
         cb(null, uploadDir);
     },
@@ -62,7 +62,8 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
         }
 
         // Try uploading to Cloudinary
-        const cloudinaryUrl = await uploadToCloudinary(multerReq.file.path);
+        const fileInput = multerReq.file.buffer || multerReq.file.path;
+        const cloudinaryUrl = await uploadToCloudinary(fileInput, multerReq.file.originalname);
 
         if (cloudinaryUrl) {
             return sendSuccess(res, { url: cloudinaryUrl }, "File uploaded successfully to Cloudinary");
@@ -70,9 +71,13 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
 
         // URL to access the file (local fallback)
         // Assumes 'uploads' is served statically from the root or via /uploads path
-        const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${multerReq.file.filename}`;
-
-        sendSuccess(res, { url: fileUrl }, "File uploaded successfully laterally");
+        if (multerReq.file.filename) {
+            const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${multerReq.file.filename}`;
+            return sendSuccess(res, { url: fileUrl }, "File uploaded successfully laterally");
+        } else {
+             return sendError(res, "Cloudinary configuration is missing for memory uploads", 500);
+        }
+        
     } catch (error) {
         console.error("Upload error:", error);
         sendError(res, "File upload failed", 500);

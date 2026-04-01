@@ -17,7 +17,7 @@ const updateMealRating = async (mealId: string) => {
         _count: { rating: true }
     });
 
-    let avgRating = 4.5;
+    let avgRating = 0;
     if (aggregate._count.rating > 0 && aggregate._avg.rating !== null) {
         avgRating = Number(aggregate._avg.rating.toFixed(1));
     }
@@ -50,7 +50,7 @@ const updateProviderRating = async (providerProfileId: string) => {
         _count: { rating: true }
     });
 
-    let rating = 4.5;
+    let rating = 0;
     if (aggregate._count.rating > 0 && aggregate._avg.rating !== null) {
         rating = Number(aggregate._avg.rating.toFixed(1));
     }
@@ -215,7 +215,7 @@ export const getMealReviews = async (mealId: string, query: ReviewQueryInput) =>
             limit,
             total,
             totalPages: Math.ceil(total / limit),
-            averageRating: avgResult._avg.rating ? Number(avgResult._avg.rating.toFixed(1)) : 4.5,
+            averageRating: avgResult._avg.rating ? Number(avgResult._avg.rating.toFixed(1)) : 0,
         },
     };
 };

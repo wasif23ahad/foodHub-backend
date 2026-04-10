@@ -17,7 +17,11 @@ export const getMyProfile = async (
         const userId = req.user!.id;
         const profile = await providerService.getProfileByUserId(userId);
         sendSuccess(res, profile, "Profile fetched successfully");
-    } catch (error) {
+    } catch (error: any) {
+        if (error.name === "NotFoundError" || error.statusCode === 404) {
+            sendSuccess(res, null, "No profile found");
+            return;
+        }
         next(error);
     }
 };

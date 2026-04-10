@@ -1,6 +1,6 @@
 import { Router, IRouter } from "express";
 import * as orderController from "../controllers/order.controller";
-import { requireAuth, validateBody, validateQuery, validateParams } from "../middlewares";
+import { requireAuth, requireCustomer, validateBody, validateQuery, validateParams } from "../middlewares";
 import {
     createOrderSchema,
     orderQuerySchema,
@@ -14,6 +14,7 @@ const router: IRouter = Router();
 router.post(
     "/",
     requireAuth,
+    requireCustomer,
     validateBody(createOrderSchema),
     orderController.createOrder
 );
@@ -21,6 +22,7 @@ router.post(
 router.get(
     "/",
     requireAuth,
+    requireCustomer,
     validateQuery(orderQuerySchema),
     orderController.getCustomerOrders
 );
@@ -28,6 +30,7 @@ router.get(
 router.get(
     "/:id",
     requireAuth,
+    requireCustomer,
     validateParams(orderIdParamSchema),
     orderController.getCustomerOrderById
 );
@@ -35,6 +38,7 @@ router.get(
 router.patch(
     "/:id/cancel",
     requireAuth,
+    requireCustomer,
     validateParams(orderIdParamSchema),
     orderController.cancelOrder
 );
@@ -42,6 +46,7 @@ router.patch(
 router.post(
     "/:id/reviews",
     requireAuth,
+    requireCustomer,
     validateParams(orderIdParamSchema),
     validateBody(createOrderReviewSchema),
     reviewController.createOrderReview

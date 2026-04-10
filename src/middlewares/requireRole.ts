@@ -27,5 +27,5 @@ export const requireRole = (...allowedRoles: Role[]) => {
 };
 
 export const requireAdmin = requireRole(Role.ADMIN);
-export const requireProvider = requireRole(Role.PROVIDER, Role.ADMIN);
-export const requireCustomer = requireRole(Role.CUSTOMER, Role.ADMIN);
+export const requireProvider = requireRole(Role.PROVIDER);
+export const requireCustomer = requireRole(Role.CUSTOMER);

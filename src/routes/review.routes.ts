@@ -1,6 +1,6 @@
 import { Router, IRouter } from "express";
 import * as reviewController from "../controllers/review.controller";
-import { requireAuth, validateBody, validateQuery, validateParams } from "../middlewares";
+import { requireAuth, requireCustomer, validateBody, validateQuery, validateParams } from "../middlewares";
 import {
     createReviewSchema,
     updateReviewSchema,
@@ -18,6 +18,7 @@ const router: IRouter = Router();
 router.post(
     "/",
     requireAuth,
+    requireCustomer,
     validateBody(createReviewSchema),
     reviewController.createReview
 );
@@ -26,6 +27,7 @@ router.post(
 router.get(
     "/me",
     requireAuth,
+    requireCustomer,
     validateQuery(reviewQuerySchema),
     reviewController.getMyReviews
 );
@@ -34,6 +36,7 @@ router.get(
 router.put(
     "/:id",
     requireAuth,
+    requireCustomer,
     validateParams(reviewIdParamSchema),
     validateBody(updateReviewSchema),
     reviewController.updateReview
@@ -43,6 +46,7 @@ router.put(
 router.delete(
     "/:id",
     requireAuth,
+    requireCustomer,
     validateParams(reviewIdParamSchema),
     reviewController.deleteReview
 );

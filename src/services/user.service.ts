@@ -21,6 +21,7 @@ export const getProfile = async (userId: string) => {
             address: true,
             phone: true,
             createdAt: true,
+            providerProfile: { select: { id: true } },
             _count: {
                 select: {
                     orders: true,

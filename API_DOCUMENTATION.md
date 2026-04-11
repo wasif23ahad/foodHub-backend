@@ -488,6 +488,16 @@ All errors follow this format:
 
 ---
 
+## Data Integrity & Cascading Rules
+
+The database utilizes strict PostgreSQL Foreign Key Cascading handled directly through the Prisma Schema. This prevents `P2003` constraint errors and ensures no orphaned records remain.
+
+- **User Deletion**: Deleting a `User` cascades to delete their `sessions`, `accounts`, `providerProfile`, `orders`, and `reviews`.
+- **Provider Deletion**: Deleting a `providerProfile` cascades to immediately remove all of their listed `meals` and historical `orders` submitted to them.
+- **Meal/Category Deletion**: Deleting a `category` cascades to remove its `meals`. Deleting a `meal` cascades to remove all associated `orderItems` from past orders to protect database integrity.
+
+---
+
 ## User Roles
 
 | Role       | Capabilities                                 |

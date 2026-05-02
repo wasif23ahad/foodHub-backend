@@ -1,9 +1,9 @@
 import express, { Application, Request, Response } from "express";
 import cors from "cors";
 import morgan from "morgan";
-import { toNodeHandler } from "better-auth/node";
+import cookieParser from "cookie-parser";
+import authRoutes from "./routes/auth.routes";
 import { config } from "./config";
-import { auth } from "./lib/auth";
 import { errorHandler } from "./middlewares";
 import { sendNotFound } from "./utils";
 import routes from "./routes";
@@ -66,12 +66,12 @@ app.get("/", (_req: Request, res: Response) => {
 app.get("/health", (_req: Request, res: Response) => res.status(200).json(healthPayload()));
 app.get("/api/health", (_req: Request, res: Response) => res.status(200).json(healthPayload()));
 
-// BetterAuth must be mounted before express.json()
-// Express 5.x requires {*path} wildcard syntax
-app.all("/api/auth/{*path}", toNodeHandler(auth));
-
+app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Auth Routes
+app.use("/api/auth", authRoutes);
 
 app.use("/api", routes);
 

@@ -9,7 +9,7 @@ import prisma from "./lib/prisma";
 async function startServer() {
     try {
         // Validate required env at runtime (not at config import, so Vercel build can succeed)
-        const required = ["DATABASE_URL", "BETTER_AUTH_SECRET"];
+        const required = ["DATABASE_URL", "JWT_SECRET"];
         for (const key of required) {
             if (!process.env[key]) {
                 throw new Error(`Missing required environment variable: ${key}`);

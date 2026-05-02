@@ -1,6 +1,7 @@
 import "dotenv/config";
 import prisma from "../src/lib/prisma";
 import bcrypt from "bcryptjs";
+import { config } from "../src/config";
 import type { providerProfile } from "@prisma/client";
 
 async function ensureCredentialUser(email: string, password: string, name: string, role: "CUSTOMER" | "PROVIDER" | "ADMIN") {

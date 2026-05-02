@@ -3,6 +3,13 @@ import { generateEmbedding, bufferToVector, cosineSimilarity } from "../lib/ai";
 
 const prisma = new PrismaClient();
 
+type MealSuggestion = {
+  id: string;
+  name: string;
+  image?: string | null;
+  similarity: number;
+};
+
 export class AIService {
   /**
    * Finds meals similar to a given meal ID
@@ -91,17 +98,22 @@ export class AIService {
 
     // 4. Create an "average preference vector"
     const vectors = historyEmbeddings.map(emb => bufferToVector(emb.embedding as Buffer));
-    const vectorLength = vectors[0].length;
+    const firstVector = vectors[0];
+    if (!firstVector) {
+      return this.getTrendingMeals(limit);
+    }
+
+    const vectorLength = firstVector.length;
     const averageVector: number[] = new Array(vectorLength).fill(0);
     
     for (const vector of vectors) {
       for (let i = 0; i < vectorLength; i++) {
-        averageVector[i] += (vector[i] || 0);
+        averageVector[i] = (averageVector[i] ?? 0) + (vector[i] || 0);
       }
     }
     
     for (let i = 0; i < vectorLength; i++) {
-      averageVector[i] /= vectors.length;
+      averageVector[i] = (averageVector[i] ?? 0) / vectors.length;
     }
 
     // 5. Compare against all meals (excluding already ordered)
@@ -132,6 +144,61 @@ export class AIService {
   }
 
   /**
+   * Cold-start fallback based on recent order volume and rating.
+   */
+  static async getTrendingMeals(limit: number = 8, days: number = 7) {
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const meals = await prisma.meal.findMany({
+      where: { isAvailable: true },
+      include: {
+        category: true,
+        providerProfile: true,
+        orderItems: {
+          where: {
+            order: {
+              createdAt: { gte: since },
+              status: { not: "CANCELLED" },
+            },
+          },
+          select: { id: true },
+        },
+      },
+    });
+
+    return meals
+      .map((meal) => ({
+        ...meal,
+        recentOrders: meal.orderItems.length,
+        score: meal.orderItems.length * 2 + (meal.avgRating || 0),
+      }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit);
+  }
+
+  static async getRecommendations(input: {
+    userId?: string;
+    limit?: number;
+    context?: "home" | "detail" | "cart";
+    mealId?: string;
+  }) {
+    const limit = input.limit ?? 8;
+
+    if (input.context === "detail" && input.mealId) {
+      const data = await this.getRelatedMeals(input.mealId, limit);
+      return { data, personalized: false, cacheHit: false };
+    }
+
+    if (input.userId) {
+      const data = await this.getPersonalizedRecommendations(input.userId, limit);
+      return { data, personalized: true, cacheHit: false };
+    }
+
+    const data = await this.getTrendingMeals(limit);
+    return { data, personalized: false, cacheHit: false };
+  }
+
+  /**
    * Search suggestions using a hybrid approach (Keyword + Semantic)
    */
   static async getSearchSuggestions(query: string, limit: number = 5) {
@@ -148,7 +215,7 @@ export class AIService {
       });
 
       // 2. Try Semantic Search (if embedding generation works)
-      let semanticMatches: any[] = [];
+      let semanticMatches: MealSuggestion[] = [];
       try {
         const queryEmbedding = await generateEmbedding(query);
         const allEmbeddings = await prisma.mealEmbedding.findMany({
@@ -161,6 +228,7 @@ export class AIService {
           return {
             id: emb.meal.id,
             name: emb.meal.name,
+            image: emb.meal.image,
             similarity
           };
         })
@@ -179,6 +247,7 @@ export class AIService {
           combined.push({
             id: km.id,
             name: km.name,
+            image: km.image,
             similarity: 1.0 // High priority for exact keyword matches
           });
         }

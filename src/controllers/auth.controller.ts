@@ -239,7 +239,10 @@ export const googleAuthCallback = async (req: Request, res: Response) => {
 
         setAuthCookie(res, token);
 
-        return res.redirect(callbackURL);
+        const redirectUrlWithToken = new URL(callbackURL);
+        redirectUrlWithToken.searchParams.set("token", token);
+
+        return res.redirect(redirectUrlWithToken.toString());
     } catch (error) {
         console.error("Google auth callback error:", error);
         return res.redirect(`${callbackURL}?error=AuthFailed`);

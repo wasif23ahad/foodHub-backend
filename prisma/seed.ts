@@ -1,8 +1,62 @@
 import "dotenv/config";
 import prisma from "../src/lib/prisma";
-import { auth } from "../src/lib/auth";
+import bcrypt from "bcryptjs";
+import type { providerProfile } from "@prisma/client";
+
+async function ensureCredentialUser(email: string, password: string, name: string, role: "CUSTOMER" | "PROVIDER" | "ADMIN") {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = await prisma.user.upsert({
+        where: { email },
+        update: {
+            name,
+            role,
+            emailVerified: true,
+            banned: false,
+            banReason: null,
+        },
+        create: {
+            email,
+            name,
+            role,
+            emailVerified: true,
+        },
+    });
+
+    await prisma.account.upsert({
+        where: {
+            providerId_accountId: {
+                providerId: "credential",
+                accountId: email,
+            },
+        },
+        update: {
+            userId: user.id,
+            password: hashedPassword,
+        },
+        create: {
+            userId: user.id,
+            providerId: "credential",
+            accountId: email,
+            password: hashedPassword,
+        },
+    });
+
+    return user;
+}
+
+const auth = {
+    api: {
+        signUpEmail: async ({ body }: { body: { email: string; password: string; name: string } }) => ({
+            user: await ensureCredentialUser(body.email, body.password, body.name, "CUSTOMER"),
+        }),
+    },
+};
 
 async function main() {
+    await ensureCredentialUser("demo-customer@foodhub.app", "Demo@1234", "Demo Customer", "CUSTOMER");
+    const demoProviderUser = await ensureCredentialUser("demo-provider@foodhub.app", "Demo@1234", "Demo Provider", "PROVIDER");
+    await ensureCredentialUser("demo-admin@foodhub.app", "Demo@1234", "Demo Admin", "ADMIN");
+    console.log("âœ… Demo accounts created.");
     console.log("🌱 Starting final cleanup & seed (Local Images)...");
 
     // 1. Create Admin User
@@ -83,7 +137,20 @@ async function main() {
         { name: "The Pasta Parlor", cuisine: "Pizza & Italian", desc: "Creamy and authentic Italian pasta.", img: "/uploads/providers/pasta-parlor.jpg" },
     ];
 
-    const providerProfiles = [];
+    const providerProfiles: providerProfile[] = [];
+    const demoProviderProfile = await prisma.providerProfile.create({
+        data: {
+            userId: demoProviderUser.id,
+            businessName: "Demo Provider Kitchen",
+            description: "Demo provider account for reviewing FoodHub provider workflows.",
+            logo: "/uploads/providers/old-dhaka-kitchen.jpg",
+            cuisineType: "Deshi",
+            isActive: true,
+            address: "Demo Delivery Center",
+            contactEmail: "demo-provider@foodhub.app",
+        },
+    });
+    providerProfiles.push(demoProviderProfile);
     for (const p of providersToSeed) {
         const safeName = p.name.toLowerCase().replace(/[^a-z.\s]/g, "").replace(/\s+/g, ".");
         const email = `${safeName}@foodhub.com`;

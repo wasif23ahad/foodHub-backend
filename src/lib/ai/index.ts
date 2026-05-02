@@ -7,7 +7,7 @@ dotenv.config();
 
 // Google Gemini Setup (Free tier)
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY || "");
-export const geminiModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+export const geminiModel = genAI.getGenerativeModel({ model: process.env.CRAVELY_GEMINI_MODEL || "gemini-2.0-flash" });
 
 // NVIDIA Setup (for StepFun model)
 export const nvidiaClient = new OpenAI({

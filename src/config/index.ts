@@ -28,6 +28,11 @@ export const config = {
     // Social Auth
     googleClientId: process.env["GOOGLE_CLIENT_ID"] ?? "",
     googleClientSecret: process.env["GOOGLE_CLIENT_SECRET"] ?? "",
+
+    // AI - configurable free-model providers
+    cravelyProvider: process.env["CRAVELY_PROVIDER"] ?? "auto",
+    cravelyGeminiModel: process.env["CRAVELY_GEMINI_MODEL"] ?? "gemini-2.0-flash",
+    cravelyNvidiaModel: process.env["CRAVELY_NVIDIA_MODEL"] ?? "stepfun-ai/step-3.5-flash",
 } as const;
 
 // Required env vars are validated at server startup (server.ts), not at import,

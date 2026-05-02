@@ -79,6 +79,24 @@ export const getAllOrders = async (
 };
 
 /**
+ * GET /api/admin/orders/:id
+ * Get an order for admin monitoring
+ */
+export const getOrderById = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> => {
+    try {
+        const orderId = req.params["id"] as string;
+        const order = await adminService.getOrderById(orderId);
+        sendSuccess(res, order, "Order fetched successfully");
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
  * GET /api/admin/dashboard
  * Get dashboard statistics
  */
@@ -127,6 +145,41 @@ export const deleteProvider = async (
         const providerId = req.params["id"] as string;
         const result = await adminService.deleteProvider(providerId);
         sendSuccess(res, result, result.message);
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * GET /api/admin/providers
+ * Get all providers, including inactive
+ */
+export const getProviders = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> => {
+    try {
+        const result = await adminService.getProviders(req.query);
+        sendSuccess(res, result.providers, "Providers fetched successfully", 200, result.meta);
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * PATCH /api/admin/providers/:id/status
+ * Suspend or activate a provider profile
+ */
+export const updateProviderStatus = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> => {
+    try {
+        const providerId = req.params["id"] as string;
+        const provider = await adminService.updateProviderStatus(providerId, Boolean(req.body.isActive));
+        sendSuccess(res, provider, provider.isActive ? "Provider activated successfully" : "Provider suspended successfully");
     } catch (error) {
         next(error);
     }

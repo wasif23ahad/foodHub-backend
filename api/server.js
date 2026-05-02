@@ -319,7 +319,9 @@ var googleAuthCallback = async (req, res) => {
     const jwtPayload = { id: user.id, email: user.email, role: user.role };
     const token = signToken(jwtPayload);
     setAuthCookie(res, token);
-    return res.redirect(callbackURL);
+    const redirectUrlWithToken = new URL(callbackURL);
+    redirectUrlWithToken.searchParams.set("token", token);
+    return res.redirect(redirectUrlWithToken.toString());
   } catch (error) {
     console.error("Google auth callback error:", error);
     return res.redirect(`${callbackURL}?error=AuthFailed`);

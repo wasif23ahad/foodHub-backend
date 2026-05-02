@@ -1,193 +1,225 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 import { geminiModel, nvidiaClient } from "../lib/ai";
+import { config } from "../config";
 import { AIService } from "./ai.service";
 
 const prisma = new PrismaClient();
 
+type CitationMeal = {
+  id: string;
+  name: string;
+  price: number;
+  rating: number;
+  category: string;
+  provider: string;
+  description: string;
+};
+
+type ChatResult = {
+  message: string;
+  citations: string[];
+  provider: "nvidia" | "gemini" | "local";
+  model: string;
+  latencyMs: number;
+};
+
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+const RATE_LIMIT_MAX = 30;
+const rateLimit = new Map<string, { count: number; resetAt: number }>();
+
+const SYSTEM_PROMPT = `You are Cravely, the friendly AI assistant for FoodHub.
+You help customers discover meals that match cravings, budget, and dietary needs.
+
+Rules:
+- ONLY recommend meals present in the provided context.
+- Mention a meal with <cite id="MEAL_ID"/> immediately after its name.
+- If no context meal matches, say so honestly and suggest browsing FoodHub.
+- Keep responses short, warm, and useful.
+- You cannot place orders; tell users to add meals to cart and checkout.
+- Redirect off-topic requests back to food.`;
+
+function isConfigured(value?: string) {
+  return !!value && value.length > 12 && !value.includes("YOUR_");
+}
+
+function validateCitations(text: string, allowedIds: string[]) {
+  const allowed = new Set(allowedIds);
+  const citations = new Set<string>();
+  const cleaned = text.replace(/<cite\s+id=["']([^"']+)["']\s*\/?>/g, (match, id: string) => {
+    if (!allowed.has(id)) return "";
+    citations.add(id);
+    return match;
+  });
+
+  return { content: cleaned.trim(), citations: Array.from(citations) };
+}
+
+function localGroundedResponse(message: string, meals: CitationMeal[]) {
+  if (meals.length === 0) {
+    return "I could not find a matching meal in FoodHub right now. Try browsing the meals page or search with a different craving.";
+  }
+
+  const budgetMatch = message.match(/(?:under|below|less than|within)\s*(\d+)/i);
+  const budget = budgetMatch ? Number(budgetMatch[1]) : null;
+  const filtered = budget ? meals.filter((meal) => meal.price <= budget) : meals;
+  const picks = (filtered.length > 0 ? filtered : meals).slice(0, 3);
+
+  return picks
+    .map((meal) => `${meal.name} <cite id="${meal.id}"/> is ${meal.category.toLowerCase()} from ${meal.provider} for BDT ${meal.price}.`)
+    .join(" ");
+}
+
 export class CravelyService {
-  /**
-   * Fetch current weather for Bangladesh (Dhaka default)
-   */
-  private static async getWeather() {
-    try {
-      const res = await fetch("https://api.open-meteo.com/v1/forecast?latitude=23.8103&longitude=90.4125&current_weather=true");
-      const data: any = await res.json();
-      const code = data.current_weather?.weathercode;
-      const temp = data.current_weather?.temperature;
-      
-      let condition = "Clear";
-      if (code >= 1 && code <= 3) condition = "Partly Cloudy";
-      if (code >= 45 && code <= 48) condition = "Foggy";
-      if (code >= 51 && code <= 65) condition = "Rainy";
-      if (code >= 80 && code <= 82) condition = "Showers";
-      if (code === 95) condition = "Thunderstorm";
+  static checkRateLimit(key: string) {
+    const now = Date.now();
+    const existing = rateLimit.get(key);
 
-      return { condition, temp: `${temp}°C` };
-    } catch (e) {
-      return { condition: "Unknown", temp: "Unknown" };
+    if (!existing || existing.resetAt <= now) {
+      rateLimit.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+      return { allowed: true, remaining: RATE_LIMIT_MAX - 1, resetAt: now + RATE_LIMIT_WINDOW_MS };
     }
+
+    if (existing.count >= RATE_LIMIT_MAX) {
+      return { allowed: false, remaining: 0, resetAt: existing.resetAt };
+    }
+
+    existing.count += 1;
+    return { allowed: true, remaining: RATE_LIMIT_MAX - existing.count, resetAt: existing.resetAt };
   }
 
-  /**
-   * Main chat interface for Cravely AI
-   */
-  static async chat(sessionId: string, message: string, userId?: string) {
-    try {
-      // 1. Get Context (RAG, Weather, Time)
-      const [suggestions, weather] = await Promise.all([
-        AIService.getSearchSuggestions(message, 3).catch(() => []),
-        this.getWeather()
-      ]);
+  static async getContextMeals(message: string, limit = 8): Promise<CitationMeal[]> {
+    const suggestions = await AIService.getSearchSuggestions(message, limit).catch(() => []);
+    const ids = suggestions.map((suggestion) => suggestion.id);
 
-      const bdTime = new Date(new Date().getTime() + (6 * 60 * 60 * 1000));
-      const hours = bdTime.getUTCHours();
-      let timeOfDay = "Day";
-      if (hours < 12) timeOfDay = "Morning";
-      if (hours >= 12 && hours < 17) timeOfDay = "Afternoon";
-      if (hours >= 17 && hours < 21) timeOfDay = "Evening";
-      if (hours >= 21 || hours < 5) timeOfDay = "Night";
+    if (ids.length === 0) {
+      const trending = await AIService.getTrendingMeals(limit);
+      return trending.map((meal) => ({
+        id: meal.id,
+        name: meal.name,
+        price: meal.price,
+        rating: meal.avgRating || 0,
+        category: meal.category?.name || "Meal",
+        provider: meal.providerProfile?.businessName || "FoodHub",
+        description: meal.description || "Freshly prepared FoodHub meal",
+      }));
+    }
 
-      let context = "";
-      if (suggestions.length > 0) {
-        context = "Here are some relevant meals from our menu:\n";
-        for (const s of suggestions) {
-          const meal = await prisma.meal.findUnique({
-            where: { id: s.id },
-            include: { category: true, providerProfile: true }
-          });
-          if (meal) {
-            context += `- ${meal.name}: ${meal.description}. Price: ৳${meal.price}. Category: ${meal.category.name}.\n`;
-          }
-        }
-      }
+    const meals = await prisma.meal.findMany({
+      where: { id: { in: ids }, isAvailable: true },
+      include: { category: true, providerProfile: true },
+    });
 
-      // 2. System Prompt
-      const systemPrompt = `
-        You are Cravely, the professional food concierge for FoodHub. 
-        Current Context in Bangladesh:
-        - Time: ${timeOfDay} (${bdTime.toLocaleTimeString()})
-        - Weather: ${weather.condition}, ${weather.temp}
-        
-        Guidelines:
-        - Provide helpful, clear, and professional recommendations.
-        - Tailor suggestions to the current weather and time (e.g., comfort food for rain, light lunch for afternoon).
-        - Use the provided menu context to recommend REAL meals.
-        - Mention prices clearly in ৳ (BDT).
-        - Maintain a refined, premium service tone.
-      `;
+    const order = new Map(ids.map((id, index) => [id, index]));
+    return meals
+      .sort((a, b) => (order.get(a.id) ?? 999) - (order.get(b.id) ?? 999))
+      .map((meal) => ({
+        id: meal.id,
+        name: meal.name,
+        price: meal.price,
+        rating: meal.avgRating || 0,
+        category: meal.category?.name || "Meal",
+        provider: meal.providerProfile?.businessName || "FoodHub",
+        description: meal.description || "Freshly prepared FoodHub meal",
+      }));
+  }
 
-      // 3. Get Chat History
-      const history = await prisma.chatMessage.findMany({
-        where: { sessionId },
-        orderBy: { createdAt: "asc" },
-        take: 8
-      });
+  static async chat(sessionId: string, message: string, userId?: string): Promise<ChatResult> {
+    const startedAt = Date.now();
+    const contextMeals = await this.getContextMeals(message);
+    const history = await prisma.chatMessage.findMany({
+      where: { sessionId },
+      orderBy: { createdAt: "asc" },
+      take: 10,
+    });
 
-      // 4. Call AI Provider
-      let responseText = "";
-      
-      // Try NVIDIA StepFun model first if configured
-      const nvidiaKey = process.env["NVIDIA_API_KEY"];
-      const isNvidiaAvailable = nvidiaKey && 
-                               nvidiaKey !== "YOUR_NVIDIA_API_KEY" && 
-                               nvidiaKey.length > 20;
+    const context = JSON.stringify(contextMeals, null, 2);
+    const prompt = `${SYSTEM_PROMPT}
 
-      if (isNvidiaAvailable) {
-        try {
-          const completion = await nvidiaClient.chat.completions.create({
-            model: "stepfun-ai/step-3.5-flash",
-            messages: [
-              { role: "system", content: systemPrompt },
-              ...history.map(m => ({ 
-                role: (m.role === "assistant" ? "assistant" : "user") as "assistant" | "user", 
-                content: m.content 
-              })),
-              { role: "user", content: message }
-            ],
-            temperature: 0.7,
-            max_tokens: 500,
-          });
-          const choice = completion.choices?.[0];
-          responseText = choice?.message?.content || (choice?.message as any)?.reasoning_content || "";
-        } catch (nvidiaErr: any) {
-          console.error("❌ NVIDIA API Error:", nvidiaErr);
-          // Fallback will happen if responseText is empty
-        }
-      }
+<context>
+${context}
+</context>
 
-      // Fallback to Gemini if NVIDIA is not available or failed
-      if (!responseText) {
-        try {
-          const chatHistory = history.map(m => ({
-            role: m.role === "assistant" ? "model" : "user",
-            parts: [{ text: m.content }]
-          }));
+<chat_history>
+${history.map((item) => `${item.role}: ${item.content}`).join("\n")}
+</chat_history>
 
-          const chat = geminiModel.startChat({
-            history: chatHistory
-          });
+<user_message>
+${message}
+</user_message>`;
 
-          const fullMessage = `${systemPrompt}\n\nUser Message: ${message}`;
-          const result = await chat.sendMessage(fullMessage);
-          responseText = result.response.text();
-        } catch (geminiErr: any) {
-          console.error("❌ Gemini API Error:", geminiErr);
-          if (geminiErr.message?.includes("401") || geminiErr.message?.includes("403")) {
-            responseText = "I'm currently in a deep culinary meditation (API authentication issue). Please ask my human creators to check my Google AI keys!";
-          } else {
-            responseText = "My culinary circuits are a bit overloaded right now. Can you try asking me again in a moment?";
-          }
-        }
-      }
+    let provider: ChatResult["provider"] = "local";
+    let model = "local-grounded";
+    let responseText = "";
+    const providerPref = config.cravelyProvider.toLowerCase();
 
-      // 5. Persist Messages
+    if ((providerPref === "auto" || providerPref === "nvidia") && isConfigured(process.env["NVIDIA_API_KEY"])) {
       try {
-        await prisma.chatMessage.create({
-          data: { sessionId, role: "user", content: message }
+        const completion = await nvidiaClient.chat.completions.create({
+          model: config.cravelyNvidiaModel,
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0.4,
+          max_tokens: 600,
         });
-
-        await prisma.chatMessage.create({
-          data: {
-            sessionId,
-            role: "assistant",
-            content: responseText,
-            citations: JSON.stringify(suggestions.map(s => s.id))
-          }
-        });
-      } catch (dbErr) {
-        console.error("❌ Failed to persist chat:", dbErr);
+        responseText = completion.choices?.[0]?.message?.content ?? "";
+        provider = "nvidia";
+        model = config.cravelyNvidiaModel;
+      } catch (error) {
+        console.error("NVIDIA chat failed:", error);
       }
-
-      return {
-          message: responseText,
-          citations: suggestions
-      };
-    } catch (globalErr) {
-      console.error("❌ Global Cravely Service Error:", globalErr);
-      return {
-        message: "I've encountered an unexpected recipe error. Let's try starting our conversation over!",
-        citations: []
-      };
     }
+
+    if (!responseText && (providerPref === "auto" || providerPref === "gemini") && isConfigured(process.env["GOOGLE_AI_API_KEY"])) {
+      try {
+        const result = await geminiModel.generateContent(prompt);
+        responseText = result.response.text();
+        provider = "gemini";
+        model = config.cravelyGeminiModel;
+      } catch (error) {
+        console.error("Gemini chat failed:", error);
+      }
+    }
+
+    if (!responseText) {
+      responseText = localGroundedResponse(message, contextMeals);
+    }
+
+    const validated = validateCitations(responseText, contextMeals.map((meal) => meal.id));
+    const finalText = validated.content || localGroundedResponse(message, contextMeals);
+    const latencyMs = Date.now() - startedAt;
+
+    await prisma.chatMessage.create({
+      data: { sessionId, role: "user", content: message },
+    });
+
+    await prisma.chatMessage.create({
+      data: {
+        sessionId,
+        role: "assistant",
+        content: finalText,
+        citations: validated.citations as Prisma.InputJsonValue,
+      },
+    });
+
+    return {
+      message: finalText,
+      citations: validated.citations,
+      provider,
+      model,
+      latencyMs,
+    };
   }
 
-  /**
-   * Create or find a chat session
-   */
   static async getOrCreateSession(sessionId?: string, userId?: string) {
     if (sessionId) {
       const session = await prisma.chatSession.findUnique({
         where: { id: sessionId },
-        include: { messages: true }
+        include: { messages: true },
       });
       if (session) return session;
     }
 
-    const data: any = {};
-    if (userId) data.userId = userId;
-
     return prisma.chatSession.create({
-      data
+      data: userId ? { userId } : {},
     });
   }
 }

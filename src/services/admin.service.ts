@@ -199,6 +199,79 @@ export const deleteProvider = async (providerId: string) => {
 };
 
 /**
+ * Get all providers for admin, including inactive providers.
+ */
+export const getProviders = async (query: { search?: string; cuisineType?: string; page?: number; limit?: number }) => {
+    const page = Number(query.page) || 1;
+    const limit = Number(query.limit) || 10;
+    const where: Record<string, unknown> = {};
+
+    if (query.cuisineType) {
+        where["cuisineType"] = { contains: query.cuisineType, mode: "insensitive" };
+    }
+
+    if (query.search) {
+        where["OR"] = [
+            { businessName: { contains: query.search, mode: "insensitive" } },
+            { contactEmail: { contains: query.search, mode: "insensitive" } },
+            { cuisineType: { contains: query.search, mode: "insensitive" } },
+        ];
+    }
+
+    const skip = (page - 1) * limit;
+    const [providers, total] = await Promise.all([
+        prisma.providerProfile.findMany({
+            where,
+            include: {
+                user: {
+                    select: { id: true, name: true, email: true, banned: true },
+                },
+                _count: {
+                    select: { meals: true, orders: true },
+                },
+            },
+            orderBy: { createdAt: "desc" },
+            skip,
+            take: limit,
+        }),
+        prisma.providerProfile.count({ where }),
+    ]);
+
+    return {
+        providers,
+        meta: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit),
+        },
+    };
+};
+
+/**
+ * Suspend or activate a provider profile.
+ */
+export const updateProviderStatus = async (providerId: string, isActive: boolean) => {
+    const provider = await prisma.providerProfile.findUnique({
+        where: { id: providerId },
+    });
+
+    if (!provider) {
+        throw new NotFoundError("Provider not found");
+    }
+
+    return prisma.providerProfile.update({
+        where: { id: providerId },
+        data: { isActive },
+        include: {
+            user: {
+                select: { id: true, name: true, email: true, banned: true },
+            },
+        },
+    });
+};
+
+/**
  * Get all meals for admin
  */
 export const getAllMeals = async (query: MealQueryInput) => {
@@ -330,6 +403,40 @@ export const getAllOrders = async (query: AdminOrderQueryInput) => {
             totalPages: Math.ceil(total / limit),
         },
     };
+};
+
+/**
+ * Get a single order for admin monitoring.
+ */
+export const getOrderById = async (orderId: string) => {
+    const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: {
+            customer: {
+                select: { id: true, name: true, email: true, phone: true },
+            },
+            providerProfile: {
+                include: {
+                    user: {
+                        select: { id: true, name: true, email: true },
+                    },
+                },
+            },
+            orderItems: {
+                include: {
+                    meal: {
+                        select: { id: true, name: true, price: true, image: true },
+                    },
+                },
+            },
+        },
+    });
+
+    if (!order) {
+        throw new NotFoundError("Order not found");
+    }
+
+    return order;
 };
 
 /**

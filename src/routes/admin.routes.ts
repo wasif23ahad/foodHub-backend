@@ -30,6 +30,8 @@ router.patch("/users/:id/ban", validateParams(userIdParamSchema), validateBody(b
 router.delete("/users/:id", validateParams(userIdParamSchema), adminController.deleteUser);
 
 // Providers
+router.get("/providers", adminController.getProviders);
+router.patch("/providers/:id/status", validateParams(providerIdParamSchema), adminController.updateProviderStatus);
 router.delete("/providers/:id", validateParams(providerIdParamSchema), adminController.deleteProvider);
 
 // Meals
@@ -38,6 +40,7 @@ router.delete("/meals/:id", validateParams(mealIdParamSchema), adminController.d
 
 // Orders
 router.get("/orders", validateQuery(adminOrderQuerySchema), adminController.getAllOrders);
+router.get("/orders/:id", validateParams(userIdParamSchema), adminController.getOrderById);
 
 // Categories
 router.post("/categories", validateBody(createCategorySchema), categoryController.createCategory);

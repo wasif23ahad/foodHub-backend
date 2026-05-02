@@ -23,18 +23,16 @@ async function ensureCredentialUser(email: string, password: string, name: strin
         },
     });
 
-    await prisma.account.upsert({
+    // 2. Ensure only one credential account exists to avoid login conflicts
+    await prisma.account.deleteMany({
         where: {
-            providerId_accountId: {
-                providerId: "credential",
-                accountId: email,
-            },
-        },
-        update: {
             userId: user.id,
-            password: hashedPassword,
+            providerId: "credential",
         },
-        create: {
+    });
+
+    await prisma.account.create({
+        data: {
             userId: user.id,
             providerId: "credential",
             accountId: email,

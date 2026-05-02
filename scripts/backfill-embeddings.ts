@@ -5,6 +5,13 @@ import crypto from "crypto";
 const prisma = new PrismaClient();
 
 async function backfill() {
+  // Check for valid API keys
+  if (!process.env.HF_API_KEY || process.env.HF_API_KEY === "YOUR_HF_API_KEY") {
+    console.error("❌ ERROR: HF_API_KEY is not configured in backend/.env");
+    console.log("Please get a READ token from: https://huggingface.co/settings/tokens");
+    process.exit(1);
+  }
+
   console.log("🚀 Starting meal embedding backfill...");
   
   const meals = await prisma.meal.findMany({
@@ -21,6 +28,15 @@ async function backfill() {
       // Create a descriptive string for embedding
       const content = `${meal.name}. ${meal.description}. Category: ${meal.category.name}. Provider: ${meal.providerProfile.businessName}`;
       const textHash = crypto.createHash("md5").update(content).digest("hex");
+      
+      const existing = await prisma.mealEmbedding.findUnique({
+        where: { mealId: meal.id }
+      });
+
+      if (existing && existing.textHash === textHash) {
+        console.log(`⏩ Skipping ${meal.name} (already indexed)`);
+        continue;
+      }
 
       console.log(`✨ Generating embedding for: ${meal.name}`);
       const embedding = await generateEmbedding(content);

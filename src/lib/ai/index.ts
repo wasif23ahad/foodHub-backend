@@ -24,8 +24,12 @@ export async function generateEmbedding(text: string): Promise<number[]> {
     
     // HF returns an array of numbers (the embedding vector)
     return response as number[];
-  } catch (error) {
-    console.error("Embedding generation failed:", error);
+  } catch (error: any) {
+    if (error?.httpResponse?.status === 401) {
+      console.error("❌ Hugging Face 401 Unauthorized: Your HF_API_KEY is invalid or expired.");
+    } else {
+      console.error("Embedding generation failed:", error);
+    }
     throw new Error("Failed to generate embedding");
   }
 }

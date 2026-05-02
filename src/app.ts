@@ -15,6 +15,8 @@ const __dirname = path.dirname(__filename);
 
 const app: Application = express();
 
+app.set('trust proxy', 1);
+
 const ALLOWED_ORIGINS = [
     "https://foodhub-frontend-sand.vercel.app",
     "http://localhost:3000",

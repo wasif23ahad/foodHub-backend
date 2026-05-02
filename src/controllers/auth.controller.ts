@@ -16,7 +16,10 @@ import {
     clearAuthCookie 
 } from "../utils/response.util";
 
-const googleClient = new OAuth2Client(config.googleClientId);
+const googleClient = new OAuth2Client(
+    config.googleClientId,
+    config.googleClientSecret
+);
 
 export const register = async (req: Request, res: Response) => {
     try {
@@ -122,22 +125,70 @@ export const login = async (req: Request, res: Response) => {
     }
 };
 
-export const googleLogin = async (req: Request, res: Response) => {
+export const googleAuthRedirect = (req: Request, res: Response) => {
+    const callbackURL = (req.query.callbackURL as string) || config.frontendUrl;
+    
+    // Store callback URL in state parameter
+    const state = Buffer.from(JSON.stringify({ callbackURL })).toString("base64");
+    
+    // Vercel sits behind a proxy, but we set trust proxy so req.protocol should be correct.
+    // If testing locally, it will be http.
+    const redirectUri = `${req.protocol}://${req.get("host")}/api/auth/callback/google`;
+    
+    const authUrl = googleClient.generateAuthUrl({
+        access_type: "offline",
+        scope: ["profile", "email"],
+        prompt: "consent",
+        state,
+        redirect_uri: redirectUri
+    });
+    
+    return res.redirect(authUrl);
+};
+
+export const googleAuthCallback = async (req: Request, res: Response) => {
+    const code = req.query.code as string;
+    const stateStr = req.query.state as string;
+    
+    let callbackURL = config.frontendUrl;
     try {
-        const { idToken } = req.body;
-
-        if (!idToken) {
-            return res.status(400).json({ message: "Missing Google ID token" });
+        if (stateStr) {
+            const decodedState = JSON.parse(Buffer.from(stateStr, "base64").toString("utf-8"));
+            if (decodedState.callbackURL) {
+                callbackURL = decodedState.callbackURL;
+            }
         }
+    } catch (e) {
+        console.error("Failed to parse state", e);
+    }
+    
+    // Validate callbackURL to prevent open redirect
+    const allowedDomains = ["localhost:3000", "foodhub-frontend-sand.vercel.app"];
+    try {
+        const urlObj = new URL(callbackURL);
+        if (!allowedDomains.some(d => urlObj.host.includes(d))) {
+            callbackURL = config.frontendUrl;
+        }
+    } catch (e) {
+        callbackURL = config.frontendUrl;
+    }
 
+    try {
+        const redirectUri = `${req.protocol}://${req.get("host")}/api/auth/callback/google`;
+        
+        const { tokens } = await googleClient.getToken({
+            code,
+            redirect_uri: redirectUri
+        });
+        
         const ticket = await googleClient.verifyIdToken({
-            idToken,
+            idToken: tokens.id_token!,
             audience: config.googleClientId,
         });
 
         const payload = ticket.getPayload();
         if (!payload || !payload.email) {
-            return res.status(400).json({ message: "Invalid Google token" });
+            return res.redirect(`${callbackURL}?error=InvalidGoogleToken`);
         }
 
         let user = await prisma.user.findUnique({
@@ -180,7 +231,7 @@ export const googleLogin = async (req: Request, res: Response) => {
         }
 
         if (user.banned) {
-            return res.status(403).json({ message: "Account is banned" });
+            return res.redirect(`${callbackURL}?error=AccountBanned`);
         }
 
         const jwtPayload: JWTPayload = { id: user.id, email: user.email, role: user.role };
@@ -188,18 +239,10 @@ export const googleLogin = async (req: Request, res: Response) => {
 
         setAuthCookie(res, token);
 
-        return sendSuccess(res, {
-            user: {
-                id: user.id,
-                email: user.email,
-                name: user.name,
-                role: user.role,
-            },
-            token,
-        }, "Google login successful");
+        return res.redirect(callbackURL);
     } catch (error) {
-        console.error("Google login error:", error);
-        return sendError(res, "Internal server error");
+        console.error("Google auth callback error:", error);
+        return res.redirect(`${callbackURL}?error=AuthFailed`);
     }
 };
 

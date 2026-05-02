@@ -4,6 +4,17 @@ import { OAuth2Client } from "google-auth-library";
 import prisma from "../lib/prisma";
 import { signToken } from "../lib/jwt";
 import { config } from "../config";
+import { JWTPayload } from "../types";
+import { 
+    sendSuccess, 
+    sendCreated, 
+    sendError, 
+    sendUnauthorized, 
+    sendForbidden, 
+    sendBadRequest, 
+    setAuthCookie, 
+    clearAuthCookie 
+} from "../utils/response.util";
 
 const googleClient = new OAuth2Client(config.googleClientId);
 
@@ -12,7 +23,7 @@ export const register = async (req: Request, res: Response) => {
         const { email, password, name, role } = req.body;
 
         if (!email || !password || !name) {
-            return res.status(400).json({ message: "Missing required fields" });
+            return sendBadRequest(res, "Missing required fields");
         }
 
         const existingUser = await prisma.user.findUnique({
@@ -20,7 +31,7 @@ export const register = async (req: Request, res: Response) => {
         });
 
         if (existingUser) {
-            return res.status(400).json({ message: "User already exists" });
+            return sendBadRequest(res, "User already exists");
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
@@ -40,16 +51,12 @@ export const register = async (req: Request, res: Response) => {
             },
         });
 
-        const token = signToken({ id: user.id, email: user.email, role: user.role });
+        const payload: JWTPayload = { id: user.id, email: user.email, role: user.role };
+        const token = signToken(payload);
 
-        res.cookie("token", token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        });
+        setAuthCookie(res, token);
 
-        res.status(201).json({
+        return sendCreated(res, {
             user: {
                 id: user.id,
                 email: user.email,
@@ -57,10 +64,10 @@ export const register = async (req: Request, res: Response) => {
                 role: user.role,
             },
             token,
-        });
+        }, "Registration successful");
     } catch (error) {
         console.error("Register error:", error);
-        res.status(500).json({ message: "Internal server error" });
+        return sendError(res, "Internal server error");
     }
 };
 
@@ -69,7 +76,7 @@ export const login = async (req: Request, res: Response) => {
         const { email, password } = req.body;
 
         if (!email || !password) {
-            return res.status(400).json({ message: "Missing email or password" });
+            return sendBadRequest(res, "Missing email or password");
         }
 
         const user = await prisma.user.findUnique({
@@ -82,29 +89,25 @@ export const login = async (req: Request, res: Response) => {
         });
 
         if (!user || !user.accounts[0]?.password) {
-            return res.status(401).json({ message: "Invalid credentials" });
+            return sendUnauthorized(res, "Invalid credentials");
         }
 
         const isPasswordValid = await bcrypt.compare(password, user.accounts[0].password);
 
         if (!isPasswordValid) {
-            return res.status(401).json({ message: "Invalid credentials" });
+            return sendUnauthorized(res, "Invalid credentials");
         }
 
         if (user.banned) {
-            return res.status(403).json({ message: "Account is banned" });
+            return sendForbidden(res, `Account is banned: ${user.banReason || "No reason provided"}`);
         }
 
-        const token = signToken({ id: user.id, email: user.email, role: user.role });
+        const payload: JWTPayload = { id: user.id, email: user.email, role: user.role };
+        const token = signToken(payload);
 
-        res.cookie("token", token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        });
+        setAuthCookie(res, token);
 
-        res.json({
+        return sendSuccess(res, {
             user: {
                 id: user.id,
                 email: user.email,
@@ -112,10 +115,10 @@ export const login = async (req: Request, res: Response) => {
                 role: user.role,
             },
             token,
-        });
+        }, "Login successful");
     } catch (error) {
         console.error("Login error:", error);
-        res.status(500).json({ message: "Internal server error" });
+        return sendError(res, "Internal server error");
     }
 };
 
@@ -180,16 +183,12 @@ export const googleLogin = async (req: Request, res: Response) => {
             return res.status(403).json({ message: "Account is banned" });
         }
 
-        const token = signToken({ id: user.id, email: user.email, role: user.role });
+        const jwtPayload: JWTPayload = { id: user.id, email: user.email, role: user.role };
+        const token = signToken(jwtPayload);
 
-        res.cookie("token", token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        });
+        setAuthCookie(res, token);
 
-        res.json({
+        return sendSuccess(res, {
             user: {
                 id: user.id,
                 email: user.email,
@@ -197,25 +196,21 @@ export const googleLogin = async (req: Request, res: Response) => {
                 role: user.role,
             },
             token,
-        });
+        }, "Google login successful");
     } catch (error) {
         console.error("Google login error:", error);
-        res.status(500).json({ message: "Internal server error" });
+        return sendError(res, "Internal server error");
     }
 };
 
 export const logout = (req: Request, res: Response) => {
-    res.clearCookie("token", {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-    });
-    res.json({ message: "Logged out successfully" });
+    clearAuthCookie(res);
+    return sendSuccess(res, null, "Logged out successfully");
 };
 
 export const getMe = async (req: any, res: Response) => {
     if (!req.user) {
-        return res.status(401).json({ message: "Not authenticated" });
+        return sendUnauthorized(res, "Not authenticated");
     }
-    res.json({ user: req.user });
+    return sendSuccess(res, { user: req.user }, "User profile fetched successfully");
 };

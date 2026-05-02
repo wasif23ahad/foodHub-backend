@@ -15,6 +15,12 @@ export interface AuthUser {
     updatedAt: Date;
 }
 
+export interface JWTPayload {
+    id: string;
+    email: string;
+    role: Role;
+}
+
 export interface AuthSession {
     id: string;
     userId: string;

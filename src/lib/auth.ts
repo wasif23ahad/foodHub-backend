@@ -51,6 +51,12 @@ export const auth = betterAuth({
 
     account: {
         skipStateCookieCheck: true,
+        // Allow account linking — when a user signs in with Google using the same email
+        // as an existing email-password account, link them instead of throwing
+        accountLinking: {
+            enabled: true,
+            trustedProviders: ["google", "facebook"],
+        },
     },
     session: {
         expiresIn: 60 * 60 * 24 * 7,
@@ -63,9 +69,24 @@ export const auth = betterAuth({
 
     socialProviders: {
         google: {
-            clientId: process.env.GOOGLE_CLIENT_ID || "",
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+            clientId: config.googleClientId,
+            clientSecret: config.googleClientSecret,
+            mapProfileToUser: (profile) => ({
+                email: profile.email,
+                name: profile.name ?? profile.email,
+                image: profile.picture,
+                role: "CUSTOMER",
+            }),
         },
+        // Only enable Facebook if credentials are provided
+        ...(config.facebookClientId && config.facebookClientSecret
+            ? {
+                  facebook: {
+                      clientId: config.facebookClientId,
+                      clientSecret: config.facebookClientSecret,
+                  },
+              }
+            : {}),
     },
 
     plugins: [],

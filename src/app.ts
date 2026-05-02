@@ -68,7 +68,7 @@ app.get("/health", (_req: Request, res: Response) => res.status(200).json(health
 app.get("/api/health", (_req: Request, res: Response) => res.status(200).json(healthPayload()));
 
 // BetterAuth must be mounted before express.json()
-app.all("/api/auth/*path", toNodeHandler(auth));
+app.use("/api/auth", toNodeHandler(auth));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

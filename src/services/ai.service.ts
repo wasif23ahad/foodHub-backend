@@ -132,34 +132,62 @@ export class AIService {
   }
 
   /**
-   * Search suggestions using semantic search (vector similarity)
+   * Search suggestions using a hybrid approach (Keyword + Semantic)
    */
   static async getSearchSuggestions(query: string, limit: number = 5) {
-    // 1. Generate embedding for the search query
-    const queryEmbedding = await generateEmbedding(query);
+    try {
+      // 1. Fast Keyword Search (Fallback/Parallel)
+      const keywordMatches = await prisma.meal.findMany({
+        where: {
+          OR: [
+            { name: { contains: query, mode: "insensitive" } },
+            { description: { contains: query, mode: "insensitive" } }
+          ]
+        },
+        take: limit,
+      });
 
-    // 2. Get all meal embeddings
-    const allEmbeddings = await prisma.mealEmbedding.findMany({
-      include: {
-        meal: true
+      // 2. Try Semantic Search (if embedding generation works)
+      let semanticMatches: any[] = [];
+      try {
+        const queryEmbedding = await generateEmbedding(query);
+        const allEmbeddings = await prisma.mealEmbedding.findMany({
+          include: { meal: true }
+        });
+
+        semanticMatches = allEmbeddings.map(emb => {
+          const vector = bufferToVector(emb.embedding as Buffer);
+          const similarity = cosineSimilarity(queryEmbedding, vector);
+          return {
+            id: emb.meal.id,
+            name: emb.meal.name,
+            similarity
+          };
+        })
+        .filter(s => s.similarity > 0.4) // Threshold
+        .sort((a, b) => b.similarity - a.similarity);
+      } catch (err) {
+        console.warn("Semantic search failed, falling back to keyword matches:", err);
       }
-    });
 
-    // 3. Calculate similarities
-    const scoredSuggestions = allEmbeddings.map(emb => {
-      const vector = bufferToVector(emb.embedding as Buffer);
-      const similarity = cosineSimilarity(queryEmbedding, vector);
-      return {
-        id: emb.meal.id,
-        name: emb.meal.name,
-        similarity
-      };
-    });
+      // 3. Merge and Deduplicate
+      const combined = [...semanticMatches];
+      
+      // Add keyword matches if they aren't already in semantic results
+      for (const km of keywordMatches) {
+        if (!combined.some(s => s.id === km.id)) {
+          combined.push({
+            id: km.id,
+            name: km.name,
+            similarity: 1.0 // High priority for exact keyword matches
+          });
+        }
+      }
 
-    // 4. Return top semantically similar results
-    return scoredSuggestions
-      .sort((a, b) => b.similarity - a.similarity)
-      .filter(s => s.similarity > 0.3) // threshold
-      .slice(0, limit);
+      return combined.slice(0, limit);
+    } catch (error) {
+      console.error("Search suggestions fatal error:", error);
+      return [];
+    }
   }
 }

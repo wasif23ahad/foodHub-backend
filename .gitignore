@@ -8,3 +8,4 @@ dist
 .vercel
 api/
 VERCEL_DEPLOYMENT.md
+.env.deploy

@@ -94,9 +94,9 @@ var config = {
   cravelyGeminiModel: process.env["CRAVELY_GEMINI_MODEL"] ?? "gemini-2.0-flash",
   cravelyNvidiaModel: process.env["CRAVELY_NVIDIA_MODEL"] ?? "stepfun-ai/step-3.5-flash",
   // SSLCommerz
-  sslcommerzStoreId: process.env["STORE_ID"] ?? "",
-  sslcommerzStorePassword: process.env["STORE_PASSWORD"] ?? "",
-  sslcommerzIsLive: process.env["IS_LIVE"] === "true"
+  sslcommerzStoreId: process.env["SSL_STORE_ID"] ?? process.env["STORE_ID"] ?? "",
+  sslcommerzStorePassword: process.env["SSL_STORE_PASS"] ?? process.env["STORE_PASSWORD"] ?? "",
+  sslcommerzIsLive: process.env["IS_SANDBOX"] === "true" ? false : process.env["IS_LIVE"] === "true"
 };
 
 // src/utils/response.util.ts
@@ -476,14 +476,14 @@ var initPayment = async (req, res) => {
 var paymentSuccess = async (req, res) => {
   try {
     const { tran_id } = req.params;
-    await prisma_default.order.update({
+    const order = await prisma_default.order.update({
       where: { transactionId: tran_id },
       data: {
         paymentStatus: "SUCCESS",
         status: "PLACED"
       }
     });
-    res.redirect(`${config.frontendUrl}/checkout/success/${tran_id}`);
+    res.redirect(`${config.frontendUrl}/checkout/success?orderId=${order.id}`);
   } catch (error) {
     console.error("Payment success error:", error);
     res.redirect(`${config.frontendUrl}/checkout/fail`);

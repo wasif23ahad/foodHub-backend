@@ -35,9 +35,9 @@ export const config = {
     cravelyNvidiaModel: process.env["CRAVELY_NVIDIA_MODEL"] ?? "stepfun-ai/step-3.5-flash",
 
     // SSLCommerz
-    sslcommerzStoreId: process.env["STORE_ID"] ?? "",
-    sslcommerzStorePassword: process.env["STORE_PASSWORD"] ?? "",
-    sslcommerzIsLive: process.env["IS_LIVE"] === "true",
+    sslcommerzStoreId: process.env["SSL_STORE_ID"] ?? process.env["STORE_ID"] ?? "",
+    sslcommerzStorePassword: process.env["SSL_STORE_PASS"] ?? process.env["STORE_PASSWORD"] ?? "",
+    sslcommerzIsLive: process.env["IS_SANDBOX"] === "true" ? false : process.env["IS_LIVE"] === "true",
 } as const;
 
 // Required env vars are validated at server startup (server.ts), not at import,

@@ -24,6 +24,14 @@ export interface AuthSession {
     userAgent?: string | null;
 }
 
+// API RESPONSE TYPES
+export interface ApiResponse<T = any> {
+    success: boolean;
+    data?: T;
+    message?: string;
+    errors?: any;
+}
+
 // Extend Express Request
 declare global {
     namespace Express {

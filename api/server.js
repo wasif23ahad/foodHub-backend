@@ -139,7 +139,10 @@ var clearAuthCookie = (res) => {
 };
 
 // src/controllers/auth.controller.ts
-var googleClient = new OAuth2Client(config.googleClientId);
+var googleClient = new OAuth2Client(
+  config.googleClientId,
+  config.googleClientSecret
+);
 var register = async (req, res) => {
   try {
     const { email, password, name, role } = req.body;
@@ -225,19 +228,55 @@ var login = async (req, res) => {
     return sendError(res, "Internal server error");
   }
 };
-var googleLogin = async (req, res) => {
+var googleAuthRedirect = (req, res) => {
+  const callbackURL = req.query.callbackURL || config.frontendUrl;
+  const state = Buffer.from(JSON.stringify({ callbackURL })).toString("base64");
+  const redirectUri = `${req.protocol}://${req.get("host")}/api/auth/callback/google`;
+  const authUrl = googleClient.generateAuthUrl({
+    access_type: "offline",
+    scope: ["profile", "email"],
+    prompt: "consent",
+    state,
+    redirect_uri: redirectUri
+  });
+  return res.redirect(authUrl);
+};
+var googleAuthCallback = async (req, res) => {
+  const code = req.query.code;
+  const stateStr = req.query.state;
+  let callbackURL = config.frontendUrl;
   try {
-    const { idToken } = req.body;
-    if (!idToken) {
-      return res.status(400).json({ message: "Missing Google ID token" });
+    if (stateStr) {
+      const decodedState = JSON.parse(Buffer.from(stateStr, "base64").toString("utf-8"));
+      if (decodedState.callbackURL) {
+        callbackURL = decodedState.callbackURL;
+      }
     }
+  } catch (e) {
+    console.error("Failed to parse state", e);
+  }
+  const allowedDomains = ["localhost:3000", "foodhub-frontend-sand.vercel.app"];
+  try {
+    const urlObj = new URL(callbackURL);
+    if (!allowedDomains.some((d) => urlObj.host.includes(d))) {
+      callbackURL = config.frontendUrl;
+    }
+  } catch (e) {
+    callbackURL = config.frontendUrl;
+  }
+  try {
+    const redirectUri = `${req.protocol}://${req.get("host")}/api/auth/callback/google`;
+    const { tokens } = await googleClient.getToken({
+      code,
+      redirect_uri: redirectUri
+    });
     const ticket = await googleClient.verifyIdToken({
-      idToken,
+      idToken: tokens.id_token,
       audience: config.googleClientId
     });
     const payload = ticket.getPayload();
     if (!payload || !payload.email) {
-      return res.status(400).json({ message: "Invalid Google token" });
+      return res.redirect(`${callbackURL}?error=InvalidGoogleToken`);
     }
     let user = await prisma_default.user.findUnique({
       where: { email: payload.email }
@@ -275,23 +314,15 @@ var googleLogin = async (req, res) => {
       }
     }
     if (user.banned) {
-      return res.status(403).json({ message: "Account is banned" });
+      return res.redirect(`${callbackURL}?error=AccountBanned`);
     }
     const jwtPayload = { id: user.id, email: user.email, role: user.role };
     const token = signToken(jwtPayload);
     setAuthCookie(res, token);
-    return sendSuccess(res, {
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role
-      },
-      token
-    }, "Google login successful");
+    return res.redirect(callbackURL);
   } catch (error) {
-    console.error("Google login error:", error);
-    return sendError(res, "Internal server error");
+    console.error("Google auth callback error:", error);
+    return res.redirect(`${callbackURL}?error=AuthFailed`);
   }
 };
 var logout = (req, res) => {
@@ -345,7 +376,8 @@ var authMiddleware = async (req, res, next) => {
 var router = Router();
 router.post("/register", register);
 router.post("/login", login);
-router.post("/google", googleLogin);
+router.get("/google", googleAuthRedirect);
+router.get("/callback/google", googleAuthCallback);
 router.post("/logout", logout);
 router.get("/me", authMiddleware, getMe);
 var auth_routes_default = router;
@@ -3353,6 +3385,7 @@ import path2 from "path";
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path2.dirname(__filename);
 var app = express();
+app.set("trust proxy", 1);
 var ALLOWED_ORIGINS = [
   "https://foodhub-frontend-sand.vercel.app",
   "http://localhost:3000",

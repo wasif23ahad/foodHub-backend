@@ -25,18 +25,17 @@ const ALLOWED_ORIGINS = [
 
 const corsOptions: cors.CorsOptions = {
     origin: (origin, callback) => {
-        // Allow requests with no origin (like mobile apps or curl)
         if (!origin) return callback(null, true);
         
-        // In development, be more permissive with localhost
-        if (config.nodeEnv === "development" && (origin.includes("localhost") || origin.includes("127.0.0.1"))) {
-            return callback(null, true);
-        }
+        const isLocalhost = origin.includes("localhost") || origin.includes("127.0.0.1");
+        const isVercel = origin.endsWith(".vercel.app");
+        const isAllowed = ALLOWED_ORIGINS.includes(origin);
 
-        if (ALLOWED_ORIGINS.includes(origin)) {
+        if (isLocalhost || isVercel || isAllowed) {
             return callback(null, true);
         }
         
+        console.warn(`CORS blocked for origin: ${origin}`);
         return callback(null, false);
     },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],

@@ -1,5 +1,5 @@
 // FoodHub Database Schema
-// Using BetterAuth with Prisma Adapter
+// Using manual JWT authentication with Prisma
 
 generator client {
   provider        = "prisma-client-js"
@@ -41,7 +41,7 @@ enum DietaryPreference {
 }
 
 // ========================================
-// BETTER AUTH TABLES
+// APPLICATION TABLES
 // ========================================
 
 model user {
@@ -56,68 +56,18 @@ model user {
   banExpires    DateTime?
   address       String?
   phone         String?
+  password      String?   // Hashed password for credential provider
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   // Relations
-  sessions        session[]
-  accounts        account[]
   providerProfile providerProfile?
   orders          order[]
   reviews         review[]
   chatSessions    chatSession[]
 }
 
-model session {
-  id        String   @id @default(cuid())
-  userId    String
-  token     String   @unique
-  expiresAt DateTime
-  ipAddress String?
-  userAgent String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user user @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-}
-
-model account {
-  id                    String    @id @default(cuid())
-  userId                String
-  accountId             String
-  providerId            String
-  accessToken           String?
-  refreshToken          String?
-  accessTokenExpiresAt  DateTime?
-  refreshTokenExpiresAt DateTime?
-  scope                 String?
-  idToken               String?
-  password              String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-
-  user user @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([providerId, accountId])
-  @@index([userId])
-}
-
-model verification {
-  id         String   @id @default(cuid())
-  identifier String
-  value      String
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@index([identifier])
-}
-
-// ========================================
-// APPLICATION TABLES
-// ========================================
+// Removed session, account, verification models as we're using JWT manually
 
 model providerProfile {
   id           String   @id @default(cuid())

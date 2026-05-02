@@ -11,6 +11,7 @@ import userRoutes from "./user.routes";
 const router: IRouter = Router();
 
 import uploadRoutes from "./upload.routes";
+import analyticsRoutes from "./analytics.routes";
 
 router.use("/user", userRoutes);
 router.use("/provider", providerRoutes);
@@ -21,5 +22,6 @@ router.use("/admin", adminRoutes);
 router.use("/categories", categoryRoutes);
 router.use("/providers", publicProviderRoutes);
 router.use("/upload", uploadRoutes);
+router.use("/analytics", analyticsRoutes);
 
 export default router;

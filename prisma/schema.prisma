@@ -40,6 +40,13 @@ enum DietaryPreference {
   HALAL
 }
 
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELLED
+}
+
 
 // ========================================
 // APPLICATION TABLES
@@ -159,6 +166,8 @@ model order {
   deliveryAddress   String
   deliveryNotes     String?
   totalAmount       Float
+  paymentStatus     PaymentStatus @default(PENDING)
+  transactionId     String?       @unique
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 

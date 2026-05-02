@@ -1,8 +1,9 @@
-import express, { Application, Request, Response } from "express";
+import express, { Application, Request, Response } from "express";
 import cors from "cors";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import authRoutes from "./routes/auth.routes";
+import paymentRoutes from "./routes/payment.routes";
 import { config } from "./config";
 import { errorHandler } from "./middlewares";
 import { sendNotFound } from "./utils";
@@ -74,6 +75,9 @@ app.use(express.urlencoded({ extended: true }));
 
 // Auth Routes
 app.use("/api/auth", authRoutes);
+
+// Payment Routes
+app.use("/api/payment", paymentRoutes);
 
 app.use("/api", routes);
 

@@ -33,6 +33,11 @@ export const config = {
     cravelyProvider: process.env["CRAVELY_PROVIDER"] ?? "auto",
     cravelyGeminiModel: process.env["CRAVELY_GEMINI_MODEL"] ?? "gemini-2.0-flash",
     cravelyNvidiaModel: process.env["CRAVELY_NVIDIA_MODEL"] ?? "stepfun-ai/step-3.5-flash",
+
+    // SSLCommerz
+    sslcommerzStoreId: process.env["STORE_ID"] ?? "",
+    sslcommerzStorePassword: process.env["STORE_PASSWORD"] ?? "",
+    sslcommerzIsLive: process.env["IS_LIVE"] === "true",
 } as const;
 
 // Required env vars are validated at server startup (server.ts), not at import,

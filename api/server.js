@@ -88,7 +88,15 @@ var config = {
   cloudinaryApiSecret: process.env["CLOUDINARY_API_SECRET"] ?? "",
   // Social Auth
   googleClientId: process.env["GOOGLE_CLIENT_ID"] ?? "",
-  googleClientSecret: process.env["GOOGLE_CLIENT_SECRET"] ?? ""
+  googleClientSecret: process.env["GOOGLE_CLIENT_SECRET"] ?? "",
+  // AI - configurable free-model providers
+  cravelyProvider: process.env["CRAVELY_PROVIDER"] ?? "auto",
+  cravelyGeminiModel: process.env["CRAVELY_GEMINI_MODEL"] ?? "gemini-2.0-flash",
+  cravelyNvidiaModel: process.env["CRAVELY_NVIDIA_MODEL"] ?? "stepfun-ai/step-3.5-flash",
+  // SSLCommerz
+  sslcommerzStoreId: process.env["STORE_ID"] ?? "",
+  sslcommerzStorePassword: process.env["STORE_PASSWORD"] ?? "",
+  sslcommerzIsLive: process.env["IS_LIVE"] === "true"
 };
 
 // src/utils/response.util.ts
@@ -384,6 +392,154 @@ router.post("/logout", logout);
 router.get("/me", authMiddleware, getMe);
 var auth_routes_default = router;
 
+// src/routes/payment.routes.ts
+import { Router as Router2 } from "express";
+
+// src/lib/sslcommerz.ts
+import SSLCommerzPayment from "sslcommerz-lts";
+var sslcommerz = new SSLCommerzPayment(
+  config.sslcommerzStoreId,
+  config.sslcommerzStorePassword,
+  config.sslcommerzIsLive
+);
+
+// src/controllers/payment.controller.ts
+var initPayment = async (req, res) => {
+  try {
+    const { orderId } = req.body;
+    const userId = req.user.id;
+    const order = await prisma_default.order.findUnique({
+      where: { id: orderId },
+      include: { customer: true }
+    });
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+    if (order.customerId !== userId) {
+      return res.status(403).json({ success: false, message: "Forbidden" });
+    }
+    if (order.paymentStatus !== "PENDING") {
+      return res.status(400).json({ success: false, message: "Order is not pending payment" });
+    }
+    const transactionId = `TXN-${Date.now()}-${Math.floor(Math.random() * 1e3)}`;
+    await prisma_default.order.update({
+      where: { id: orderId },
+      data: { transactionId }
+    });
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+    const data = {
+      total_amount: order.totalAmount,
+      currency: "BDT",
+      tran_id: transactionId,
+      success_url: `${baseUrl}/api/payment/success/${transactionId}`,
+      fail_url: `${baseUrl}/api/payment/fail/${transactionId}`,
+      cancel_url: `${baseUrl}/api/payment/cancel/${transactionId}`,
+      ipn_url: `${baseUrl}/api/payment/ipn`,
+      shipping_method: "Courier",
+      product_name: "Food Order",
+      product_category: "Food",
+      product_profile: "general",
+      cus_name: order.customer.name || "Customer",
+      cus_email: order.customer.email,
+      cus_add1: order.deliveryAddress,
+      cus_add2: order.deliveryAddress,
+      cus_city: "Dhaka",
+      cus_state: "Dhaka",
+      cus_postcode: "1000",
+      cus_country: "Bangladesh",
+      cus_phone: order.customer.phone || "01711111111",
+      cus_fax: "01711111111",
+      ship_name: order.customer.name || "Customer",
+      ship_add1: order.deliveryAddress,
+      ship_add2: order.deliveryAddress,
+      ship_city: "Dhaka",
+      ship_state: "Dhaka",
+      ship_postcode: 1e3,
+      ship_country: "Bangladesh"
+    };
+    sslcommerz.init(data).then((apiResponse) => {
+      let GatewayPageURL = apiResponse.GatewayPageURL;
+      if (GatewayPageURL) {
+        return res.status(200).json({ success: true, url: GatewayPageURL });
+      } else {
+        return res.status(400).json({ success: false, message: "Failed to initialize payment gateway" });
+      }
+    }).catch((error) => {
+      console.error("SSLCommerz init error:", error);
+      return res.status(500).json({ success: false, message: "Failed to initialize payment gateway" });
+    });
+  } catch (error) {
+    console.error("Payment init error:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+var paymentSuccess = async (req, res) => {
+  try {
+    const { tran_id } = req.params;
+    await prisma_default.order.update({
+      where: { transactionId: tran_id },
+      data: {
+        paymentStatus: "SUCCESS",
+        status: "PLACED"
+      }
+    });
+    res.redirect(`${config.frontendUrl}/checkout/success/${tran_id}`);
+  } catch (error) {
+    console.error("Payment success error:", error);
+    res.redirect(`${config.frontendUrl}/checkout/fail`);
+  }
+};
+var paymentFail = async (req, res) => {
+  try {
+    const { tran_id } = req.params;
+    await prisma_default.order.update({
+      where: { transactionId: tran_id },
+      data: { paymentStatus: "FAILED" }
+    });
+    res.redirect(`${config.frontendUrl}/checkout/fail`);
+  } catch (error) {
+    console.error("Payment fail error:", error);
+    res.redirect(`${config.frontendUrl}/checkout/fail`);
+  }
+};
+var paymentCancel = async (req, res) => {
+  try {
+    const { tran_id } = req.params;
+    await prisma_default.order.update({
+      where: { transactionId: tran_id },
+      data: { paymentStatus: "CANCELLED" }
+    });
+    res.redirect(`${config.frontendUrl}/checkout/cancel`);
+  } catch (error) {
+    console.error("Payment cancel error:", error);
+    res.redirect(`${config.frontendUrl}/checkout/cancel`);
+  }
+};
+var paymentIpn = async (req, res) => {
+  try {
+    const { status, tran_id } = req.body;
+    if (status === "VALID" && tran_id) {
+      await prisma_default.order.update({
+        where: { transactionId: tran_id },
+        data: { paymentStatus: "SUCCESS" }
+      });
+    }
+    return res.status(200).json({ message: "IPN received" });
+  } catch (error) {
+    console.error("IPN error:", error);
+    return res.status(500).json({ message: "IPN processing error" });
+  }
+};
+
+// src/routes/payment.routes.ts
+var router2 = Router2();
+router2.post("/init", authMiddleware, initPayment);
+router2.post("/success/:tran_id", paymentSuccess);
+router2.post("/fail/:tran_id", paymentFail);
+router2.post("/cancel/:tran_id", paymentCancel);
+router2.post("/ipn", paymentIpn);
+var payment_routes_default = router2;
+
 // src/utils/AppError.ts
 var AppError = class extends Error {
   statusCode;
@@ -539,10 +695,10 @@ var validateQuery = (schema) => validate(schema, { target: "query" });
 var validateParams = (schema) => validate(schema, { target: "params" });
 
 // src/routes/index.ts
-import { Router as Router12 } from "express";
+import { Router as Router13 } from "express";
 
 // src/routes/provider.routes.ts
-import { Router as Router2 } from "express";
+import { Router as Router3 } from "express";
 
 // src/services/provider.service.ts
 var getProfileByUserId = async (userId) => {
@@ -1527,21 +1683,21 @@ var orderIdParamSchema = z3.object({
 });
 
 // src/routes/provider.routes.ts
-var router2 = Router2();
-router2.get("/profile", authMiddleware, requireProvider, getMyProfile);
-router2.post("/profile", authMiddleware, requireProvider, validateBody(createProviderProfileSchema), createProfile2);
-router2.put("/profile", authMiddleware, requireProvider, validateBody(updateProviderProfileSchema), updateMyProfile);
-router2.get("/meals", authMiddleware, requireProvider, getMyMeals);
-router2.post("/meals", authMiddleware, requireProvider, validateBody(createMealSchema), createMeal2);
-router2.put("/meals/:id", authMiddleware, requireProvider, validateParams(mealIdParamSchema), validateBody(updateMealSchema), updateMeal2);
-router2.delete("/meals/:id", authMiddleware, requireProvider, validateParams(mealIdParamSchema), deleteMeal2);
-router2.get("/orders", authMiddleware, requireProvider, validateQuery(orderQuerySchema), getProviderOrders2);
-router2.get("/orders/:id", authMiddleware, requireProvider, validateParams(orderIdParamSchema), getProviderOrderById2);
-router2.patch("/orders/:id/status", authMiddleware, requireProvider, validateParams(orderIdParamSchema), validateBody(updateOrderStatusSchema), updateOrderStatus2);
-var provider_routes_default = router2;
+var router3 = Router3();
+router3.get("/profile", authMiddleware, requireProvider, getMyProfile);
+router3.post("/profile", authMiddleware, requireProvider, validateBody(createProviderProfileSchema), createProfile2);
+router3.put("/profile", authMiddleware, requireProvider, validateBody(updateProviderProfileSchema), updateMyProfile);
+router3.get("/meals", authMiddleware, requireProvider, getMyMeals);
+router3.post("/meals", authMiddleware, requireProvider, validateBody(createMealSchema), createMeal2);
+router3.put("/meals/:id", authMiddleware, requireProvider, validateParams(mealIdParamSchema), validateBody(updateMealSchema), updateMeal2);
+router3.delete("/meals/:id", authMiddleware, requireProvider, validateParams(mealIdParamSchema), deleteMeal2);
+router3.get("/orders", authMiddleware, requireProvider, validateQuery(orderQuerySchema), getProviderOrders2);
+router3.get("/orders/:id", authMiddleware, requireProvider, validateParams(orderIdParamSchema), getProviderOrderById2);
+router3.patch("/orders/:id/status", authMiddleware, requireProvider, validateParams(orderIdParamSchema), validateBody(updateOrderStatusSchema), updateOrderStatus2);
+var provider_routes_default = router3;
 
 // src/routes/meal.routes.ts
-import { Router as Router3 } from "express";
+import { Router as Router4 } from "express";
 
 // src/services/review.service.ts
 var updateMealRating = async (mealId) => {
@@ -1711,44 +1867,44 @@ var reviewQuerySchema = z4.object({
 });
 
 // src/routes/meal.routes.ts
-var router3 = Router3();
-router3.get("/", validateQuery(mealQuerySchema), getMeals2);
-router3.get("/:id", validateParams(mealIdParamSchema), getMealById2);
-router3.get("/:mealId/reviews", validateParams(mealIdParamSchema2), validateQuery(reviewQuerySchema), getMealReviews2);
-var meal_routes_default = router3;
+var router4 = Router4();
+router4.get("/", validateQuery(mealQuerySchema), getMeals2);
+router4.get("/:id", validateParams(mealIdParamSchema), getMealById2);
+router4.get("/:mealId/reviews", validateParams(mealIdParamSchema2), validateQuery(reviewQuerySchema), getMealReviews2);
+var meal_routes_default = router4;
 
 // src/routes/order.routes.ts
-import { Router as Router4 } from "express";
-var router4 = Router4();
-router4.post(
+import { Router as Router5 } from "express";
+var router5 = Router5();
+router5.post(
   "/",
   authMiddleware,
   requireCustomer,
   validateBody(createOrderSchema),
   createOrder2
 );
-router4.get(
+router5.get(
   "/",
   authMiddleware,
   requireCustomer,
   validateQuery(orderQuerySchema),
   getCustomerOrders2
 );
-router4.get(
+router5.get(
   "/:id",
   authMiddleware,
   requireCustomer,
   validateParams(orderIdParamSchema),
   getCustomerOrderById2
 );
-router4.patch(
+router5.patch(
   "/:id/cancel",
   authMiddleware,
   requireCustomer,
   validateParams(orderIdParamSchema),
   cancelOrder2
 );
-router4.post(
+router5.post(
   "/:id/reviews",
   authMiddleware,
   requireCustomer,
@@ -1756,10 +1912,10 @@ router4.post(
   validateBody(createOrderReviewSchema),
   createOrderReview2
 );
-var order_routes_default = router4;
+var order_routes_default = router5;
 
 // src/routes/category.routes.ts
-import { Router as Router5 } from "express";
+import { Router as Router6 } from "express";
 
 // src/services/category.service.ts
 var getCategories = async (query) => {
@@ -1950,21 +2106,21 @@ var categoryQuerySchema = z5.object({
 });
 
 // src/routes/category.routes.ts
-var router5 = Router5();
-router5.get(
+var router6 = Router6();
+router6.get(
   "/",
   validateQuery(categoryQuerySchema),
   getCategories2
 );
-router5.get(
+router6.get(
   "/:id",
   validateParams(categoryIdParamSchema),
   getCategoryById2
 );
-var category_routes_default = router5;
+var category_routes_default = router6;
 
 // src/routes/public-provider.routes.ts
-import { Router as Router6 } from "express";
+import { Router as Router7 } from "express";
 
 // src/controllers/public-provider.controller.ts
 var getProviders = async (req, res, next) => {
@@ -1999,21 +2155,21 @@ var providerIdParamSchema = z6.object({
 });
 
 // src/routes/public-provider.routes.ts
-var router6 = Router6();
-router6.get(
+var router7 = Router7();
+router7.get(
   "/",
   validateQuery(providerQuerySchema),
   getProviders
 );
-router6.get(
+router7.get(
   "/:id",
   validateParams(providerIdParamSchema),
   getProviderById
 );
-var public_provider_routes_default = router6;
+var public_provider_routes_default = router7;
 
 // src/routes/user.routes.ts
-import { Router as Router7 } from "express";
+import { Router as Router8 } from "express";
 
 // src/services/user.service.ts
 var getProfile = async (userId) => {
@@ -2189,20 +2345,20 @@ var updateProfileSchema = z7.object({
 });
 
 // src/routes/user.routes.ts
-var router7 = Router7();
-router7.use(authMiddleware);
-router7.get("/profile", getProfile2);
-router7.patch(
+var router8 = Router8();
+router8.use(authMiddleware);
+router8.get("/profile", getProfile2);
+router8.patch(
   "/profile",
   validateBody(updateProfileSchema),
   updateProfile3
 );
-router7.get("/dashboard", getDashboard);
-router7.get("/orders", getOrderHistory2);
-var user_routes_default = router7;
+router8.get("/dashboard", getDashboard);
+router8.get("/orders", getOrderHistory2);
+var user_routes_default = router8;
 
 // src/routes/upload.routes.ts
-import { Router as Router8 } from "express";
+import { Router as Router9 } from "express";
 import multer from "multer";
 import path from "path";
 import fs2 from "fs";
@@ -2261,7 +2417,7 @@ var uploadToCloudinary = async (fileInput, originalName) => {
 };
 
 // src/routes/upload.routes.ts
-var router8 = Router8();
+var router9 = Router9();
 var isVercel = process.env["VERCEL"] === "1";
 var uploadDir = isVercel ? "/tmp" : path.join(process.cwd(), "uploads");
 if (!isVercel && !fs2.existsSync(uploadDir)) {
@@ -2293,7 +2449,7 @@ var upload = multer({
   fileFilter
   // Cast to any to avoid strict type mismatch with multer types
 });
-router8.post("/", upload.single("file"), async (req, res) => {
+router9.post("/", upload.single("file"), async (req, res) => {
   const multerReq = req;
   try {
     if (!multerReq.file) {
@@ -2315,10 +2471,10 @@ router8.post("/", upload.single("file"), async (req, res) => {
     sendError(res, "File upload failed", 500);
   }
 });
-var upload_routes_default = router8;
+var upload_routes_default = router9;
 
 // src/routes/admin.routes.ts
-import { Router as Router9 } from "express";
+import { Router as Router10 } from "express";
 
 // src/services/admin.service.ts
 var getUsers = async (query) => {
@@ -2467,6 +2623,65 @@ var deleteProvider = async (providerId) => {
   });
   return { message: "Provider deleted successfully" };
 };
+var getProviders2 = async (query) => {
+  const page = Number(query.page) || 1;
+  const limit = Number(query.limit) || 10;
+  const where = {};
+  if (query.cuisineType) {
+    where["cuisineType"] = { contains: query.cuisineType, mode: "insensitive" };
+  }
+  if (query.search) {
+    where["OR"] = [
+      { businessName: { contains: query.search, mode: "insensitive" } },
+      { contactEmail: { contains: query.search, mode: "insensitive" } },
+      { cuisineType: { contains: query.search, mode: "insensitive" } }
+    ];
+  }
+  const skip = (page - 1) * limit;
+  const [providers, total] = await Promise.all([
+    prisma_default.providerProfile.findMany({
+      where,
+      include: {
+        user: {
+          select: { id: true, name: true, email: true, banned: true }
+        },
+        _count: {
+          select: { meals: true, orders: true }
+        }
+      },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: limit
+    }),
+    prisma_default.providerProfile.count({ where })
+  ]);
+  return {
+    providers,
+    meta: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit)
+    }
+  };
+};
+var updateProviderStatus = async (providerId, isActive) => {
+  const provider = await prisma_default.providerProfile.findUnique({
+    where: { id: providerId }
+  });
+  if (!provider) {
+    throw new NotFoundError("Provider not found");
+  }
+  return prisma_default.providerProfile.update({
+    where: { id: providerId },
+    data: { isActive },
+    include: {
+      user: {
+        select: { id: true, name: true, email: true, banned: true }
+      }
+    }
+  });
+};
 var getAllMeals = async (query) => {
   const { search, categoryId, page, limit } = query;
   const where = {};
@@ -2573,6 +2788,34 @@ var getAllOrders = async (query) => {
     }
   };
 };
+var getOrderById = async (orderId) => {
+  const order = await prisma_default.order.findUnique({
+    where: { id: orderId },
+    include: {
+      customer: {
+        select: { id: true, name: true, email: true, phone: true }
+      },
+      providerProfile: {
+        include: {
+          user: {
+            select: { id: true, name: true, email: true }
+          }
+        }
+      },
+      orderItems: {
+        include: {
+          meal: {
+            select: { id: true, name: true, price: true, image: true }
+          }
+        }
+      }
+    }
+  });
+  if (!order) {
+    throw new NotFoundError("Order not found");
+  }
+  return order;
+};
 var getDashboardStats2 = async () => {
   const [
     totalUsers,
@@ -2663,6 +2906,15 @@ var getAllOrders2 = async (req, res, next) => {
     next(error);
   }
 };
+var getOrderById2 = async (req, res, next) => {
+  try {
+    const orderId = req.params["id"];
+    const order = await getOrderById(orderId);
+    sendSuccess(res, order, "Order fetched successfully");
+  } catch (error) {
+    next(error);
+  }
+};
 var getDashboardStats3 = async (req, res, next) => {
   try {
     const stats = await getDashboardStats2();
@@ -2686,6 +2938,23 @@ var deleteProvider2 = async (req, res, next) => {
     const providerId = req.params["id"];
     const result = await deleteProvider(providerId);
     sendSuccess(res, result, result.message);
+  } catch (error) {
+    next(error);
+  }
+};
+var getProviders3 = async (req, res, next) => {
+  try {
+    const result = await getProviders2(req.query);
+    sendSuccess(res, result.providers, "Providers fetched successfully", 200, result.meta);
+  } catch (error) {
+    next(error);
+  }
+};
+var updateProviderStatus2 = async (req, res, next) => {
+  try {
+    const providerId = req.params["id"];
+    const provider = await updateProviderStatus(providerId, Boolean(req.body.isActive));
+    sendSuccess(res, provider, provider.isActive ? "Provider activated successfully" : "Provider suspended successfully");
   } catch (error) {
     next(error);
   }
@@ -2738,24 +3007,27 @@ var adminOrderQuerySchema = z8.object({
 });
 
 // src/routes/admin.routes.ts
-var router9 = Router9();
-router9.use(authMiddleware, requireAdmin);
-router9.get("/dashboard", getDashboardStats3);
-router9.get("/users", validateQuery(userListQuerySchema), getUsers2);
-router9.get("/users/:id", validateParams(userIdParamSchema), getUserById2);
-router9.patch("/users/:id/ban", validateParams(userIdParamSchema), validateBody(banUserSchema), banUser2);
-router9.delete("/users/:id", validateParams(userIdParamSchema), deleteUser2);
-router9.delete("/providers/:id", validateParams(providerIdParamSchema2), deleteProvider2);
-router9.get("/meals", validateQuery(mealQuerySchema), getAllMeals2);
-router9.delete("/meals/:id", validateParams(mealIdParamSchema), deleteMeal4);
-router9.get("/orders", validateQuery(adminOrderQuerySchema), getAllOrders2);
-router9.post("/categories", validateBody(createCategorySchema), createCategory2);
-router9.put("/categories/:id", validateParams(categoryIdParamSchema), validateBody(updateCategorySchema), updateCategory2);
-router9.delete("/categories/:id", validateParams(categoryIdParamSchema), deleteCategory2);
-var admin_routes_default = router9;
+var router10 = Router10();
+router10.use(authMiddleware, requireAdmin);
+router10.get("/dashboard", getDashboardStats3);
+router10.get("/users", validateQuery(userListQuerySchema), getUsers2);
+router10.get("/users/:id", validateParams(userIdParamSchema), getUserById2);
+router10.patch("/users/:id/ban", validateParams(userIdParamSchema), validateBody(banUserSchema), banUser2);
+router10.delete("/users/:id", validateParams(userIdParamSchema), deleteUser2);
+router10.get("/providers", getProviders3);
+router10.patch("/providers/:id/status", validateParams(providerIdParamSchema2), updateProviderStatus2);
+router10.delete("/providers/:id", validateParams(providerIdParamSchema2), deleteProvider2);
+router10.get("/meals", validateQuery(mealQuerySchema), getAllMeals2);
+router10.delete("/meals/:id", validateParams(mealIdParamSchema), deleteMeal4);
+router10.get("/orders", validateQuery(adminOrderQuerySchema), getAllOrders2);
+router10.get("/orders/:id", validateParams(userIdParamSchema), getOrderById2);
+router10.post("/categories", validateBody(createCategorySchema), createCategory2);
+router10.put("/categories/:id", validateParams(categoryIdParamSchema), validateBody(updateCategorySchema), updateCategory2);
+router10.delete("/categories/:id", validateParams(categoryIdParamSchema), deleteCategory2);
+var admin_routes_default = router10;
 
 // src/routes/analytics.routes.ts
-import { Router as Router10 } from "express";
+import { Router as Router11 } from "express";
 
 // src/services/analytics.service.ts
 import { startOfDay, subDays, format, eachDayOfInterval } from "date-fns";
@@ -2909,13 +3181,14 @@ var getProviderAnalytics2 = async (req, res, next) => {
 };
 
 // src/routes/analytics.routes.ts
-var router10 = Router10();
-router10.get("/admin", authMiddleware, requireRole("ADMIN"), getAdminAnalytics2);
-router10.get("/provider", authMiddleware, requireRole("PROVIDER"), getProviderAnalytics2);
-var analytics_routes_default = router10;
+var router11 = Router11();
+router11.get("/admin", authMiddleware, requireRole("ADMIN"), getAdminAnalytics2);
+router11.get("/provider", authMiddleware, requireRole("PROVIDER"), getProviderAnalytics2);
+var analytics_routes_default = router11;
 
 // src/routes/ai.routes.ts
-import { Router as Router11 } from "express";
+import { Router as Router12 } from "express";
+import { PrismaClient as PrismaClient4 } from "@prisma/client";
 
 // src/services/ai.service.ts
 import { PrismaClient as PrismaClient2 } from "@prisma/client";
@@ -2927,7 +3200,7 @@ import OpenAI from "openai";
 import dotenv from "dotenv";
 dotenv.config();
 var genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY || "");
-var geminiModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+var geminiModel = genAI.getGenerativeModel({ model: process.env.CRAVELY_GEMINI_MODEL || "gemini-2.0-flash" });
 var nvidiaClient = new OpenAI({
   apiKey: process.env.NVIDIA_API_KEY || "",
   baseURL: "https://integrate.api.nvidia.com/v1"
@@ -3038,15 +3311,19 @@ var AIService = class {
       });
     }
     const vectors = historyEmbeddings.map((emb) => bufferToVector(emb.embedding));
-    const vectorLength = vectors[0].length;
+    const firstVector = vectors[0];
+    if (!firstVector) {
+      return this.getTrendingMeals(limit);
+    }
+    const vectorLength = firstVector.length;
     const averageVector = new Array(vectorLength).fill(0);
     for (const vector of vectors) {
       for (let i = 0; i < vectorLength; i++) {
-        averageVector[i] += vector[i] || 0;
+        averageVector[i] = (averageVector[i] ?? 0) + (vector[i] || 0);
       }
     }
     for (let i = 0; i < vectorLength; i++) {
-      averageVector[i] /= vectors.length;
+      averageVector[i] = (averageVector[i] ?? 0) / vectors.length;
     }
     const allEmbeddings = await prisma2.mealEmbedding.findMany({
       where: { mealId: { notIn: historyMealIds } },
@@ -3068,6 +3345,46 @@ var AIService = class {
       };
     });
     return scoredMeals.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
+  }
+  /**
+   * Cold-start fallback based on recent order volume and rating.
+   */
+  static async getTrendingMeals(limit = 8, days = 7) {
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1e3);
+    const meals = await prisma2.meal.findMany({
+      where: { isAvailable: true },
+      include: {
+        category: true,
+        providerProfile: true,
+        orderItems: {
+          where: {
+            order: {
+              createdAt: { gte: since },
+              status: { not: "CANCELLED" }
+            }
+          },
+          select: { id: true }
+        }
+      }
+    });
+    return meals.map((meal) => ({
+      ...meal,
+      recentOrders: meal.orderItems.length,
+      score: meal.orderItems.length * 2 + (meal.avgRating || 0)
+    })).sort((a, b) => b.score - a.score).slice(0, limit);
+  }
+  static async getRecommendations(input) {
+    const limit = input.limit ?? 8;
+    if (input.context === "detail" && input.mealId) {
+      const data2 = await this.getRelatedMeals(input.mealId, limit);
+      return { data: data2, personalized: false, cacheHit: false };
+    }
+    if (input.userId) {
+      const data2 = await this.getPersonalizedRecommendations(input.userId, limit);
+      return { data: data2, personalized: true, cacheHit: false };
+    }
+    const data = await this.getTrendingMeals(limit);
+    return { data, personalized: false, cacheHit: false };
   }
   /**
    * Search suggestions using a hybrid approach (Keyword + Semantic)
@@ -3095,6 +3412,7 @@ var AIService = class {
           return {
             id: emb.meal.id,
             name: emb.meal.name,
+            image: emb.meal.image,
             similarity
           };
         }).filter((s) => s.similarity > 0.4).sort((a, b) => b.similarity - a.similarity);
@@ -3107,6 +3425,7 @@ var AIService = class {
           combined.push({
             id: km.id,
             name: km.name,
+            image: km.image,
             similarity: 1
             // High priority for exact keyword matches
           });
@@ -3123,152 +3442,162 @@ var AIService = class {
 // src/services/cravely.service.ts
 import { PrismaClient as PrismaClient3 } from "@prisma/client";
 var prisma3 = new PrismaClient3();
-var CravelyService = class {
-  /**
-   * Fetch current weather for Bangladesh (Dhaka default)
-   */
-  static async getWeather() {
-    try {
-      const res = await fetch("https://api.open-meteo.com/v1/forecast?latitude=23.8103&longitude=90.4125&current_weather=true");
-      const data = await res.json();
-      const code = data.current_weather?.weathercode;
-      const temp = data.current_weather?.temperature;
-      let condition = "Clear";
-      if (code >= 1 && code <= 3) condition = "Partly Cloudy";
-      if (code >= 45 && code <= 48) condition = "Foggy";
-      if (code >= 51 && code <= 65) condition = "Rainy";
-      if (code >= 80 && code <= 82) condition = "Showers";
-      if (code === 95) condition = "Thunderstorm";
-      return { condition, temp: `${temp}\xB0C` };
-    } catch (e) {
-      return { condition: "Unknown", temp: "Unknown" };
-    }
-  }
-  /**
-   * Main chat interface for Cravely AI
-   */
-  static async chat(sessionId, message, userId) {
-    try {
-      const [suggestions, weather] = await Promise.all([
-        AIService.getSearchSuggestions(message, 3).catch(() => []),
-        this.getWeather()
-      ]);
-      const bdTime = new Date((/* @__PURE__ */ new Date()).getTime() + 6 * 60 * 60 * 1e3);
-      const hours = bdTime.getUTCHours();
-      let timeOfDay = "Day";
-      if (hours < 12) timeOfDay = "Morning";
-      if (hours >= 12 && hours < 17) timeOfDay = "Afternoon";
-      if (hours >= 17 && hours < 21) timeOfDay = "Evening";
-      if (hours >= 21 || hours < 5) timeOfDay = "Night";
-      let context = "";
-      if (suggestions.length > 0) {
-        context = "Here are some relevant meals from our menu:\n";
-        for (const s of suggestions) {
-          const meal = await prisma3.meal.findUnique({
-            where: { id: s.id },
-            include: { category: true, providerProfile: true }
-          });
-          if (meal) {
-            context += `- ${meal.name}: ${meal.description}. Price: \u09F3${meal.price}. Category: ${meal.category.name}.
-`;
-          }
-        }
-      }
-      const systemPrompt = `
-        You are Cravely, the professional food concierge for FoodHub. 
-        Current Context in Bangladesh:
-        - Time: ${timeOfDay} (${bdTime.toLocaleTimeString()})
-        - Weather: ${weather.condition}, ${weather.temp}
-        
-        Guidelines:
-        - Provide helpful, clear, and professional recommendations.
-        - Tailor suggestions to the current weather and time (e.g., comfort food for rain, light lunch for afternoon).
-        - Use the provided menu context to recommend REAL meals.
-        - Mention prices clearly in \u09F3 (BDT).
-        - Maintain a refined, premium service tone.
-      `;
-      const history = await prisma3.chatMessage.findMany({
-        where: { sessionId },
-        orderBy: { createdAt: "asc" },
-        take: 8
-      });
-      let responseText = "";
-      const nvidiaKey = process.env["NVIDIA_API_KEY"];
-      const isNvidiaAvailable = nvidiaKey && nvidiaKey !== "YOUR_NVIDIA_API_KEY" && nvidiaKey.length > 20;
-      if (isNvidiaAvailable) {
-        try {
-          const completion = await nvidiaClient.chat.completions.create({
-            model: "stepfun-ai/step-3.5-flash",
-            messages: [
-              { role: "system", content: systemPrompt },
-              ...history.map((m) => ({
-                role: m.role === "assistant" ? "assistant" : "user",
-                content: m.content
-              })),
-              { role: "user", content: message }
-            ],
-            temperature: 0.7,
-            max_tokens: 500
-          });
-          const choice = completion.choices?.[0];
-          responseText = choice?.message?.content || choice?.message?.reasoning_content || "";
-        } catch (nvidiaErr) {
-          console.error("\u274C NVIDIA API Error:", nvidiaErr);
-        }
-      }
-      if (!responseText) {
-        try {
-          const chatHistory = history.map((m) => ({
-            role: m.role === "assistant" ? "model" : "user",
-            parts: [{ text: m.content }]
-          }));
-          const chat = geminiModel.startChat({
-            history: chatHistory
-          });
-          const fullMessage = `${systemPrompt}
+var RATE_LIMIT_WINDOW_MS = 60 * 60 * 1e3;
+var RATE_LIMIT_MAX = 30;
+var rateLimit = /* @__PURE__ */ new Map();
+var SYSTEM_PROMPT = `You are Cravely, the friendly AI assistant for FoodHub.
+You help customers discover meals that match cravings, budget, and dietary needs.
 
-User Message: ${message}`;
-          const result = await chat.sendMessage(fullMessage);
-          responseText = result.response.text();
-        } catch (geminiErr) {
-          console.error("\u274C Gemini API Error:", geminiErr);
-          if (geminiErr.message?.includes("401") || geminiErr.message?.includes("403")) {
-            responseText = "I'm currently in a deep culinary meditation (API authentication issue). Please ask my human creators to check my Google AI keys!";
-          } else {
-            responseText = "My culinary circuits are a bit overloaded right now. Can you try asking me again in a moment?";
-          }
-        }
-      }
-      try {
-        await prisma3.chatMessage.create({
-          data: { sessionId, role: "user", content: message }
-        });
-        await prisma3.chatMessage.create({
-          data: {
-            sessionId,
-            role: "assistant",
-            content: responseText,
-            citations: JSON.stringify(suggestions.map((s) => s.id))
-          }
-        });
-      } catch (dbErr) {
-        console.error("\u274C Failed to persist chat:", dbErr);
-      }
-      return {
-        message: responseText,
-        citations: suggestions
-      };
-    } catch (globalErr) {
-      console.error("\u274C Global Cravely Service Error:", globalErr);
-      return {
-        message: "I've encountered an unexpected recipe error. Let's try starting our conversation over!",
-        citations: []
-      };
-    }
+Rules:
+- ONLY recommend meals present in the provided context.
+- Mention a meal with <cite id="MEAL_ID"/> immediately after its name.
+- If no context meal matches, say so honestly and suggest browsing FoodHub.
+- Keep responses short, warm, and useful.
+- You cannot place orders; tell users to add meals to cart and checkout.
+- Redirect off-topic requests back to food.`;
+function isConfigured(value) {
+  return !!value && value.length > 12 && !value.includes("YOUR_");
+}
+function validateCitations(text, allowedIds) {
+  const allowed = new Set(allowedIds);
+  const citations = /* @__PURE__ */ new Set();
+  const cleaned = text.replace(/<cite\s+id=["']([^"']+)["']\s*\/?>/g, (match, id) => {
+    if (!allowed.has(id)) return "";
+    citations.add(id);
+    return match;
+  });
+  return { content: cleaned.trim(), citations: Array.from(citations) };
+}
+function localGroundedResponse(message, meals) {
+  if (meals.length === 0) {
+    return "I could not find a matching meal in FoodHub right now. Try browsing the meals page or search with a different craving.";
   }
-  /**
-   * Create or find a chat session
-   */
+  const budgetMatch = message.match(/(?:under|below|less than|within)\s*(\d+)/i);
+  const budget = budgetMatch ? Number(budgetMatch[1]) : null;
+  const filtered = budget ? meals.filter((meal) => meal.price <= budget) : meals;
+  const picks = (filtered.length > 0 ? filtered : meals).slice(0, 3);
+  return picks.map((meal) => `${meal.name} <cite id="${meal.id}"/> is ${meal.category.toLowerCase()} from ${meal.provider} for BDT ${meal.price}.`).join(" ");
+}
+var CravelyService = class {
+  static checkRateLimit(key) {
+    const now = Date.now();
+    const existing = rateLimit.get(key);
+    if (!existing || existing.resetAt <= now) {
+      rateLimit.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+      return { allowed: true, remaining: RATE_LIMIT_MAX - 1, resetAt: now + RATE_LIMIT_WINDOW_MS };
+    }
+    if (existing.count >= RATE_LIMIT_MAX) {
+      return { allowed: false, remaining: 0, resetAt: existing.resetAt };
+    }
+    existing.count += 1;
+    return { allowed: true, remaining: RATE_LIMIT_MAX - existing.count, resetAt: existing.resetAt };
+  }
+  static async getContextMeals(message, limit = 8) {
+    const suggestions = await AIService.getSearchSuggestions(message, limit).catch(() => []);
+    const ids = suggestions.map((suggestion) => suggestion.id);
+    if (ids.length === 0) {
+      const trending = await AIService.getTrendingMeals(limit);
+      return trending.map((meal) => ({
+        id: meal.id,
+        name: meal.name,
+        price: meal.price,
+        rating: meal.avgRating || 0,
+        category: meal.category?.name || "Meal",
+        provider: meal.providerProfile?.businessName || "FoodHub",
+        description: meal.description || "Freshly prepared FoodHub meal"
+      }));
+    }
+    const meals = await prisma3.meal.findMany({
+      where: { id: { in: ids }, isAvailable: true },
+      include: { category: true, providerProfile: true }
+    });
+    const order = new Map(ids.map((id, index) => [id, index]));
+    return meals.sort((a, b) => (order.get(a.id) ?? 999) - (order.get(b.id) ?? 999)).map((meal) => ({
+      id: meal.id,
+      name: meal.name,
+      price: meal.price,
+      rating: meal.avgRating || 0,
+      category: meal.category?.name || "Meal",
+      provider: meal.providerProfile?.businessName || "FoodHub",
+      description: meal.description || "Freshly prepared FoodHub meal"
+    }));
+  }
+  static async chat(sessionId, message, userId) {
+    const startedAt = Date.now();
+    const contextMeals = await this.getContextMeals(message);
+    const history = await prisma3.chatMessage.findMany({
+      where: { sessionId },
+      orderBy: { createdAt: "asc" },
+      take: 10
+    });
+    const context = JSON.stringify(contextMeals, null, 2);
+    const prompt = `${SYSTEM_PROMPT}
+
+<context>
+${context}
+</context>
+
+<chat_history>
+${history.map((item) => `${item.role}: ${item.content}`).join("\n")}
+</chat_history>
+
+<user_message>
+${message}
+</user_message>`;
+    let provider = "local";
+    let model = "local-grounded";
+    let responseText = "";
+    const providerPref = config.cravelyProvider.toLowerCase();
+    if ((providerPref === "auto" || providerPref === "nvidia") && isConfigured(process.env["NVIDIA_API_KEY"])) {
+      try {
+        const completion = await nvidiaClient.chat.completions.create({
+          model: config.cravelyNvidiaModel,
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0.4,
+          max_tokens: 600
+        });
+        responseText = completion.choices?.[0]?.message?.content ?? "";
+        provider = "nvidia";
+        model = config.cravelyNvidiaModel;
+      } catch (error) {
+        console.error("NVIDIA chat failed:", error);
+      }
+    }
+    if (!responseText && (providerPref === "auto" || providerPref === "gemini") && isConfigured(process.env["GOOGLE_AI_API_KEY"])) {
+      try {
+        const result = await geminiModel.generateContent(prompt);
+        responseText = result.response.text();
+        provider = "gemini";
+        model = config.cravelyGeminiModel;
+      } catch (error) {
+        console.error("Gemini chat failed:", error);
+      }
+    }
+    if (!responseText) {
+      responseText = localGroundedResponse(message, contextMeals);
+    }
+    const validated = validateCitations(responseText, contextMeals.map((meal) => meal.id));
+    const finalText = validated.content || localGroundedResponse(message, contextMeals);
+    const latencyMs = Date.now() - startedAt;
+    await prisma3.chatMessage.create({
+      data: { sessionId, role: "user", content: message }
+    });
+    await prisma3.chatMessage.create({
+      data: {
+        sessionId,
+        role: "assistant",
+        content: finalText,
+        citations: validated.citations
+      }
+    });
+    return {
+      message: finalText,
+      citations: validated.citations,
+      provider,
+      model,
+      latencyMs
+    };
+  }
   static async getOrCreateSession(sessionId, userId) {
     if (sessionId) {
       const session = await prisma3.chatSession.findUnique({
@@ -3277,78 +3606,147 @@ User Message: ${message}`;
       });
       if (session) return session;
     }
-    const data = {};
-    if (userId) data.userId = userId;
     return prisma3.chatSession.create({
-      data
+      data: userId ? { userId } : {}
     });
   }
 };
 
 // src/routes/ai.routes.ts
-import { PrismaClient as PrismaClient4 } from "@prisma/client";
-var router11 = Router11();
+var router12 = Router12();
 var prisma4 = new PrismaClient4();
-router11.get("/recommendations/personalized", authMiddleware, async (req, res) => {
+function parseLimit(value, fallback, max = 50) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.min(Math.floor(parsed), max);
+}
+function sendSse(res, event, data) {
+  res.write(`event: ${event}
+`);
+  res.write(`data: ${JSON.stringify(data)}
+
+`);
+}
+router12.get("/recommendations/personalized", authMiddleware, async (req, res) => {
   try {
     const userId = req.user?.id;
     if (!userId) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
-    const recommendations = await AIService.getPersonalizedRecommendations(userId);
+    const recommendations = await AIService.getPersonalizedRecommendations(userId, parseLimit(req.query["limit"], 8));
     res.json({ success: true, data: recommendations });
   } catch (error) {
     console.error("Personalized recommendations failed:", error);
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
-router11.get("/recommendations/related/:mealId", async (req, res) => {
+router12.post("/recommendations", async (req, res) => {
   try {
-    const { mealId } = req.params;
-    const recommendations = await AIService.getRelatedMeals(mealId);
+    const context = ["home", "detail", "cart"].includes(req.body?.context) ? req.body.context : "home";
+    const input = {
+      context,
+      limit: parseLimit(req.body?.limit, 8)
+    };
+    if (typeof req.user?.id === "string") input.userId = req.user.id;
+    if (typeof req.body?.mealId === "string") input.mealId = req.body.mealId;
+    const result = await AIService.getRecommendations(input);
+    res.json({ success: true, ...result });
+  } catch (error) {
+    console.error("Recommendations failed:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+router12.get("/recommendations/related/:mealId", async (req, res) => {
+  try {
+    const mealId = req.params["mealId"];
+    if (!mealId) {
+      return res.status(400).json({ success: false, message: "Meal ID is required" });
+    }
+    const recommendations = await AIService.getRelatedMeals(mealId, parseLimit(req.query["limit"], 5));
     res.json({ success: true, data: recommendations });
   } catch (error) {
     console.error("Related meals failed:", error);
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
-router11.get("/search/suggestions", async (req, res) => {
+router12.get("/trending", async (req, res) => {
   try {
-    const { q } = req.query;
+    const meals = await AIService.getTrendingMeals(
+      parseLimit(req.query["limit"], 8),
+      parseLimit(req.query["days"], 7, 90)
+    );
+    res.json({ success: true, data: meals });
+  } catch (error) {
+    console.error("Trending meals failed:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+router12.get(["/suggest", "/search/suggestions"], async (req, res) => {
+  try {
+    const q = req.query["q"];
     if (!q || typeof q !== "string") {
       return res.json({ success: true, data: [] });
     }
-    const suggestions = await AIService.getSearchSuggestions(q);
+    const suggestions = await AIService.getSearchSuggestions(q, parseLimit(req.query["limit"], 5));
     res.json({ success: true, data: suggestions });
   } catch (error) {
     console.error("Search suggestions failed:", error);
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
-router11.post("/chat", async (req, res) => {
+router12.post("/chat", async (req, res) => {
   try {
-    const { sessionId, message } = req.body;
+    const sessionId = typeof req.body?.sessionId === "string" ? req.body.sessionId : void 0;
+    const message = typeof req.body?.message === "string" ? req.body.message.trim() : "";
     const userId = req.user?.id;
     if (!message) {
       return res.status(400).json({ success: false, message: "Message is required" });
     }
+    if (message.length > 1e3) {
+      return res.status(400).json({ success: false, message: "Message must be 1000 characters or less" });
+    }
+    const limitKey = userId ?? sessionId ?? req.ip ?? "anonymous";
+    const limit = CravelyService.checkRateLimit(limitKey);
+    if (!limit.allowed) {
+      return res.status(429).json({
+        success: false,
+        message: `You've hit your hourly chat limit. Resets in ${Math.ceil((limit.resetAt - Date.now()) / 6e4)} min.`
+      });
+    }
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
+    res.setHeader("Connection", "keep-alive");
+    res.flushHeaders?.();
     const session = await CravelyService.getOrCreateSession(sessionId, userId);
     const result = await CravelyService.chat(session.id, message, userId);
-    res.json({
-      success: true,
-      data: {
-        sessionId: session.id,
-        ...result
-      }
+    const chunks = result.message.match(/.{1,24}(\s|$)/g) ?? [result.message];
+    for (const chunk of chunks) {
+      sendSse(res, "token", { text: chunk });
+    }
+    sendSse(res, "citations", { meals: result.citations });
+    sendSse(res, "done", {
+      sessionId: session.id,
+      model: result.model,
+      provider: result.provider,
+      latencyMs: result.latencyMs,
+      remaining: limit.remaining
     });
+    res.end();
   } catch (error) {
     console.error("Cravely chat failed:", error);
-    res.status(500).json({ success: false, message: "AI Assistant is currently busy. Please try again." });
+    if (!res.headersSent) {
+      return res.status(500).json({ success: false, message: "AI Assistant is currently busy. Please try again." });
+    }
+    sendSse(res, "error", { message: "AI Assistant is currently busy. Please try again." });
+    res.end();
   }
 });
-router11.get("/chat/session/:id", async (req, res) => {
+router12.get("/chat/session/:id", async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = req.params["id"];
+    if (!id) {
+      return res.status(400).json({ success: false, message: "Session ID is required" });
+    }
     const session = await prisma4.chatSession.findUnique({
       where: { id },
       include: {
@@ -3362,24 +3760,24 @@ router11.get("/chat/session/:id", async (req, res) => {
     res.status(500).json({ success: false, message: "Failed to load history" });
   }
 });
-var ai_routes_default = router11;
+var ai_routes_default = router12;
 
 // src/routes/index.ts
-var router12 = Router12();
-router12.get("/health", (req, res) => {
+var router13 = Router13();
+router13.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: (/* @__PURE__ */ new Date()).toISOString() });
 });
-router12.use("/user", user_routes_default);
-router12.use("/provider", provider_routes_default);
-router12.use("/meals", meal_routes_default);
-router12.use("/orders", order_routes_default);
-router12.use("/categories", category_routes_default);
-router12.use("/providers", public_provider_routes_default);
-router12.use("/upload", upload_routes_default);
-router12.use("/admin", admin_routes_default);
-router12.use("/analytics", analytics_routes_default);
-router12.use("/ai", ai_routes_default);
-var routes_default = router12;
+router13.use("/user", user_routes_default);
+router13.use("/provider", provider_routes_default);
+router13.use("/meals", meal_routes_default);
+router13.use("/orders", order_routes_default);
+router13.use("/categories", category_routes_default);
+router13.use("/providers", public_provider_routes_default);
+router13.use("/upload", upload_routes_default);
+router13.use("/admin", admin_routes_default);
+router13.use("/analytics", analytics_routes_default);
+router13.use("/ai", ai_routes_default);
+var routes_default = router13;
 
 // src/app.ts
 import { fileURLToPath } from "url";
@@ -3435,6 +3833,7 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use("/api/auth", auth_routes_default);
+app.use("/api/payment", payment_routes_default);
 app.use("/api", routes_default);
 app.use((_req, res) => {
   sendNotFound(res, "Route not found");

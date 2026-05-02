@@ -10,22 +10,29 @@ export class CravelyService {
    */
   static async chat(sessionId: string, message: string, userId?: string) {
     // 1. Semantic Retrieval (RAG)
-    // Find relevant meals based on the user's message
-    const suggestions = await AIService.getSearchSuggestions(message, 3);
-    
-    // 2. Build Context String
+    let suggestions: any[] = [];
     let context = "";
-    if (suggestions.length > 0) {
-      context = "Here are some relevant meals from our menu that might help you answer:\n";
-      for (const s of suggestions) {
-        const meal = await prisma.meal.findUnique({
-          where: { id: s.id },
-          include: { category: true, providerProfile: true }
-        });
-        if (meal) {
-          context += `- ${meal.name}: ${meal.description}. Price: ৳${meal.price}. Category: ${meal.category.name}. From: ${meal.providerProfile.businessName}\n`;
+
+    try {
+      // Find relevant meals based on the user's message
+      suggestions = await AIService.getSearchSuggestions(message, 3);
+      
+      // 2. Build Context String
+      if (suggestions.length > 0) {
+        context = "Here are some relevant meals from our menu that might help you answer:\n";
+        for (const s of suggestions) {
+          const meal = await prisma.meal.findUnique({
+            where: { id: s.id },
+            include: { category: true, providerProfile: true }
+          });
+          if (meal) {
+            context += `- ${meal.name}: ${meal.description}. Price: ৳${meal.price}. Category: ${meal.category.name}. From: ${meal.providerProfile.businessName}\n`;
+          }
         }
       }
+    } catch (err) {
+      console.warn("⚠️ AI RAG Failed (falling back to general response):", err);
+      // Proceed without context
     }
 
     // 3. System Prompt

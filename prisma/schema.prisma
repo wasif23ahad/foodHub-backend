@@ -65,6 +65,7 @@ model user {
   providerProfile providerProfile?
   orders          order[]
   reviews         review[]
+  chatSessions    chatSession[]
 }
 
 model session {
@@ -174,6 +175,7 @@ model meal {
   category        category        @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   orderItems      orderItem[]
   reviews         review[]
+  mealEmbedding   mealEmbedding?
 
   @@index([providerProfileId])
   @@index([categoryId])
@@ -232,4 +234,48 @@ model review {
   // One review per user per meal
   @@unique([userId, mealId])
   @@index([mealId])
+}
+
+// ========================================
+// V2 ADDITIONS
+// ========================================
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  subject   String
+  message   String
+  resolved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model chatSession {
+  id        String        @id @default(cuid())
+  userId    String?       // nullable for guest sessions
+  createdAt DateTime      @default(now())
+  messages  chatMessage[]
+  user      user?         @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model chatMessage {
+  id        String      @id @default(cuid())
+  sessionId String
+  role      String      // 'user' | 'assistant' | 'system'
+  content   String
+  citations Json?       // referenced meal/provider IDs
+  createdAt DateTime    @default(now())
+  session   chatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+model mealEmbedding {
+  mealId    String   @id
+  embedding Bytes    // 384-dim float32 packed
+  textHash  String   // detect when meal text changed → re-embed
+  updatedAt DateTime @updatedAt
+  meal      meal     @relation(fields: [mealId], references: [id], onDelete: Cascade)
 }

@@ -18,13 +18,25 @@ const app: Application = express();
 const ALLOWED_ORIGINS = [
     "https://foodhub-frontend-sand.vercel.app",
     "http://localhost:3000",
-    "http://localhost:5000"
+    "http://localhost:5000",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5000"
 ].filter(Boolean) as string[];
 
 const corsOptions: cors.CorsOptions = {
     origin: (origin, callback) => {
-        if (!origin) return callback(null, ALLOWED_ORIGINS[0] ?? false);
-        if (ALLOWED_ORIGINS.includes(origin)) return callback(null, origin);
+        // Allow requests with no origin (like mobile apps or curl)
+        if (!origin) return callback(null, true);
+        
+        // In development, be more permissive with localhost
+        if (config.nodeEnv === "development" && (origin.includes("localhost") || origin.includes("127.0.0.1"))) {
+            return callback(null, true);
+        }
+
+        if (ALLOWED_ORIGINS.includes(origin)) {
+            return callback(null, true);
+        }
+        
         return callback(null, false);
     },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],

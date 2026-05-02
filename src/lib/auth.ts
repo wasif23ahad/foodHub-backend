@@ -61,6 +61,13 @@ export const auth = betterAuth({
         },
     },
 
+    socialProviders: {
+        google: {
+            clientId: process.env.GOOGLE_CLIENT_ID || "",
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+        },
+    },
+
     plugins: [],
 
     advanced: {
@@ -76,6 +83,7 @@ export const auth = betterAuth({
 
     trustedOrigins: [
         "https://foodhub-frontend-sand.vercel.app",
+        "https://foodhub-backend-silk.vercel.app",
         "http://localhost:3000",
     ].filter(Boolean),
 });

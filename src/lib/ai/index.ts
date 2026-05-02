@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { HfInference } from "@huggingface/inference";
+import OpenAI from "openai";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -7,6 +8,12 @@ dotenv.config();
 // Google Gemini Setup (Free tier)
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY || "");
 export const geminiModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+// NVIDIA Setup (for StepFun model)
+export const nvidiaClient = new OpenAI({
+  apiKey: process.env.NVIDIA_API_KEY || "",
+  baseURL: "https://integrate.api.nvidia.com/v1",
+});
 
 // Hugging Face Setup (Free tier for embeddings)
 export const hf = new HfInference(process.env.HF_API_KEY || "");
@@ -59,9 +66,11 @@ export function cosineSimilarity(vecA: number[], vecB: number[]): number {
   let mB = 0;
   
   for (let i = 0; i < vecA.length; i++) {
-    dotProduct += vecA[i] * vecB[i];
-    mA += vecA[i] * vecA[i];
-    mB += vecB[i] * vecB[i];
+    const a = vecA[i] ?? 0;
+    const b = vecB[i] ?? 0;
+    dotProduct += a * b;
+    mA += a * a;
+    mB += b * b;
   }
   
   mA = Math.sqrt(mA);

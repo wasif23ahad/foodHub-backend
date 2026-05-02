@@ -40,6 +40,7 @@ enum DietaryPreference {
   HALAL
 }
 
+
 // ========================================
 // APPLICATION TABLES
 // ========================================
@@ -56,18 +57,16 @@ model user {
   banExpires    DateTime?
   address       String?
   phone         String?
-  password      String?   // Hashed password for credential provider
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   // Relations
+  accounts        account[]
   providerProfile providerProfile?
   orders          order[]
   reviews         review[]
   chatSessions    chatSession[]
 }
-
-// Removed session, account, verification models as we're using JWT manually
 
 model providerProfile {
   id           String   @id @default(cuid())
@@ -89,6 +88,27 @@ model providerProfile {
   meals  meal[]
   orders order[]
 
+  @@index([userId])
+}
+
+model account {
+  id                    String    @id @default(cuid())
+  userId                String
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  idToken               String?
+  password              String?   // Hashed password for credential provider
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user user @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
   @@index([userId])
 }
 

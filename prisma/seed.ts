@@ -57,31 +57,12 @@ async function main() {
     await ensureCredentialUser("demo-customer@foodhub.app", "Demo@1234", "Demo Customer", "CUSTOMER");
     const demoProviderUser = await ensureCredentialUser("demo-provider@foodhub.app", "Demo@1234", "Demo Provider", "PROVIDER");
     await ensureCredentialUser("demo-admin@foodhub.app", "Demo@1234", "Demo Admin", "ADMIN");
-    console.log("âœ… Demo accounts created.");
+    console.log("✅ Demo accounts created.");
     console.log("🌱 Starting final cleanup & seed (Local Images)...");
 
-    // 1. Create Admin User
-    const adminEmail = "admin@foodhub.com";
-    const adminPassword = "admin123";
-    const adminName = "FoodHub Admin";
-
-    let adminUser = await prisma.user.findUnique({ where: { email: adminEmail } });
-    if (!adminUser) {
-        try {
-            const result = await auth.api.signUpEmail({
-                body: { email: adminEmail, password: adminPassword, name: adminName },
-            });
-            if (result.user) {
-                adminUser = await prisma.user.update({
-                    where: { id: result.user.id },
-                    data: { role: "ADMIN", emailVerified: true }
-                });
-                console.log(`✅ Admin user created: ${adminEmail}`);
-            }
-        } catch (e) {
-            console.error("Failed to create admin:", e);
-        }
-    }
+    // 1. Create Superadmin User
+    await ensureCredentialUser(config.adminEmail, config.adminPassword, "FoodHub Admin", "ADMIN");
+    console.log(`✅ Admin user ensured: ${config.adminEmail}`);
 
     // 2. Clear existing data
     console.log("🧹 Cleaning up old data types...");
@@ -93,7 +74,6 @@ async function main() {
     await prisma.category.deleteMany({});
 
     // 3. Ensure Categories (11)
-    // Using local uploads for categories
     const categories = [
         { name: "Deshi", folder: "deshi", img: "/uploads/meals/beef-kala-bhuna.jpg" },
         { name: "Biriyani", folder: "biriyani", img: "/uploads/meals/kacchi-biriyani.jpg" },
@@ -124,7 +104,6 @@ async function main() {
     console.log(`✅ ${categories.length} categories created.`);
 
     // 4. Create 10 Curated Providers
-    // Using local uploads for providers
     const providersToSeed = [
         { name: "Old Dhaka Kitchen", cuisine: "Deshi", desc: "Authentic Old Dhaka Tehari and Biriyani.", img: "/uploads/providers/old-dhaka-kitchen.jpg" },
         { name: "Sultanic Biriyani", cuisine: "Biriyani", desc: "Premium Kacchi Biriyani specialists.", img: "/uploads/providers/sultanic-biriyani.jpg" },
@@ -187,7 +166,6 @@ async function main() {
     console.log(`✅ ${providerProfiles.length} providers created.`);
 
     // 5. Create Final Meals (53 Total)
-    // Using local uploads for meals
     const mealDataMap: any = {
         "Deshi": [
             { name: "Beef Kala Bhuna", price: 450, img: "https://res.cloudinary.com/dmvfa61je/image/upload/v1772667702/beef-kala-bhuna_zcdmpn.jpg", dietary: "HALAL" },

@@ -199,63 +199,103 @@ export class AIService {
   }
 
   /**
-   * Search suggestions using a hybrid approach (Keyword + Semantic)
+   * Search suggestions using a professional hybrid approach (Keyword + Semantic)
    */
-  static async getSearchSuggestions(query: string, limit: number = 5) {
+  static async getSearchSuggestions(query: string, limit: number = 8) {
     try {
-      // 1. Fast Keyword Search (Fallback/Parallel)
+      const normalizedQuery = query.trim().toLowerCase();
+      if (normalizedQuery.length < 2) return [];
+
+      // 1. Get Keyword Matches
       const keywordMatches = await prisma.meal.findMany({
         where: {
           OR: [
-            { name: { contains: query, mode: "insensitive" } },
-            { description: { contains: query, mode: "insensitive" } }
+            { name: { contains: normalizedQuery, mode: "insensitive" } },
+            { description: { contains: normalizedQuery, mode: "insensitive" } }
           ]
         },
-        take: limit,
+        include: {
+          category: true,
+          providerProfile: true,
+        },
+        take: limit * 2,
       });
 
-      // 2. Try Semantic Search (if embedding generation works)
-      let semanticMatches: MealSuggestion[] = [];
+      const keywordIds = new Set(keywordMatches.map(m => m.id));
+
+      // 2. Try Semantic Search
+      let results: (MealSuggestion & { isKeywordMatch: boolean; score: number })[] = [];
+      
       try {
         const queryEmbedding = await generateEmbedding(query);
         const allEmbeddings = await prisma.mealEmbedding.findMany({
-          include: { meal: true }
+          include: { 
+            meal: {
+              include: {
+                category: true,
+                providerProfile: true,
+              }
+            } 
+          }
         });
 
-        semanticMatches = allEmbeddings.map(emb => {
+        results = allEmbeddings.map(emb => {
           const vector = bufferToVector(emb.embedding as Buffer);
           const similarity = cosineSimilarity(queryEmbedding, vector);
+          const isKeywordMatch = keywordIds.has(emb.meal.id);
+          
+          // Hybrid Scoring: Semantic similarity + Keyword Boost
+          // If it matches keywords, we boost the semantic score
+          let score = similarity;
+          if (isKeywordMatch) {
+            score = similarity * 1.3; // 30% boost for keyword matches
+          }
+
           return {
             id: emb.meal.id,
             name: emb.meal.name,
             image: emb.meal.image,
-            similarity
+            similarity: similarity,
+            isKeywordMatch,
+            score: score
           };
         })
-        .filter(s => s.similarity > 0.4) // Threshold
-        .sort((a, b) => b.similarity - a.similarity);
+        .filter(s => s.score > 0.45) // Professional threshold
+        .sort((a, b) => b.score - a.score);
+
       } catch (err) {
-        console.warn("Semantic search failed, falling back to keyword matches:", err);
+        console.warn("⚠️ Semantic search failed, falling back to keyword matches only.");
+        // Fallback to keyword only if semantic fails
+        results = keywordMatches.map(m => ({
+          id: m.id,
+          name: m.name,
+          image: m.image,
+          similarity: 0,
+          isKeywordMatch: true,
+          score: 1.0
+        }));
       }
 
-      // 3. Merge and Deduplicate
-      const combined = [...semanticMatches];
-      
-      // Add keyword matches if they aren't already in semantic results
+      // 3. Add missing keyword matches that didn't have embeddings
       for (const km of keywordMatches) {
-        if (!combined.some(s => s.id === km.id)) {
-          combined.push({
+        if (!results.some(s => s.id === km.id)) {
+          results.push({
             id: km.id,
             name: km.name,
             image: km.image,
-            similarity: 1.0 // High priority for exact keyword matches
+            similarity: 0,
+            isKeywordMatch: true,
+            score: 0.8 // Decent score for keyword only
           });
         }
       }
 
-      return combined.slice(0, limit);
+      // 4. Final sort and return top results
+      return results
+        .sort((a, b) => b.score - a.score)
+        .slice(0, limit);
     } catch (error) {
-      console.error("Search suggestions fatal error:", error);
+      console.error("❌ Search suggestions fatal error:", error);
       return [];
     }
   }

@@ -250,14 +250,16 @@ async function main() {
         let provider = providerProfiles.find(p => p.cuisineType === catName);
         if (!provider) provider = providerProfiles[Math.floor(Math.random() * providerProfiles.length)];
 
+        const isDemoProvider = provider.businessName === "Demo Provider Kitchen";
         const mealList = meals as any[];
+        
         for (const m of mealList) {
             await prisma.meal.create({
                 data: {
                     name: m.name,
                     description: `Delicious ${m.name} freshly prepared.`,
                     price: m.price,
-                    image: m.img,
+                    image: isDemoProvider ? "" : m.img,
                     categoryId: catId,
                     providerProfileId: provider.id,
                     dietaryPreference: m.dietary || "REGULAR",

@@ -122,24 +122,23 @@ router.post("/chat", async (req, res) => {
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache, no-transform");
     res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
     res.flushHeaders?.();
 
     const session = await CravelyService.getOrCreateSession(sessionId, userId);
-    const result = await CravelyService.chat(session.id, message, userId);
+    const stream = CravelyService.chatStream(session.id, message, userId);
 
-    const chunks = result.message.match(/.{1,24}(\s|$)/g) ?? [result.message];
-    for (const chunk of chunks) {
-      sendSse(res, "token", { text: chunk });
+    for await (const chunk of stream) {
+      if (chunk.type === "token") {
+        sendSse(res, "token", { text: chunk.text });
+      } else if (chunk.type === "done") {
+        sendSse(res, "citations", { meals: chunk.citations });
+        sendSse(res, "done", {
+          sessionId: chunk.sessionId,
+          remaining: limit.remaining,
+        });
+      }
     }
-
-    sendSse(res, "citations", { meals: result.citations });
-    sendSse(res, "done", {
-      sessionId: session.id,
-      model: result.model,
-      provider: result.provider,
-      latencyMs: result.latencyMs,
-      remaining: limit.remaining,
-    });
     res.end();
   } catch (error) {
     console.error("Cravely chat failed:", error);

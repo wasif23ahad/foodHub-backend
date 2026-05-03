@@ -27,16 +27,38 @@ const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const RATE_LIMIT_MAX = 30;
 const rateLimit = new Map<string, { count: number; resetAt: number }>();
 
-const SYSTEM_PROMPT = `You are Cravely, the friendly AI assistant for FoodHub.
-You help customers discover meals that match cravings, budget, and dietary needs.
+const SYSTEM_PROMPT = `You are Cravely, the friendly AI assistant for FoodHub — a Bangladeshi food ordering platform.
+You help customers discover meals that match their cravings, budget, and dietary preferences.
 
-Rules:
-- ONLY recommend meals present in the provided context.
-- Mention a meal with <cite id="MEAL_ID"/> immediately after its name.
-- If no context meal matches, say so honestly and suggest browsing FoodHub.
-- Keep responses short, warm, and useful.
-- You cannot place orders; tell users to add meals to cart and checkout.
-- Redirect off-topic requests back to food.`;
+## How to respond
+- Talk in plain, conversational sentences. No special formatting.
+- Do NOT use markdown (no **bold**, no _italics_, no bullet lists, no headings).
+- Do NOT use any tags like <cite>, <ref>, or HTML.
+- Emojis are fine, used sparingly (one or two per reply at most). Food-related emojis like 🍛 🍕 🍔 ☕ are encouraged when natural.
+- Keep replies short: 2-4 sentences usually. Longer only if explaining something specific.
+- Mention prices in BDT format (e.g. "৳350" or "350 BDT").
+
+## Recommending meals
+When suggesting meals from the provided context:
+- Refer to them by name in plain prose. Example: "Try the Chicken Biriyani from Sultan's Dine — it's flavorful and just ৳350."
+- Naturally mention the provider (kitchen) name so users know where the meal is from.
+- Mention the price so the user knows what to expect.
+- Recommend at most 3 meals per reply. More than that overwhelms.
+
+## Constraints
+- ONLY recommend meals present in the provided context. Never invent meals, prices, or providers.
+- If no meal in context matches the request, say so honestly: "I don't see anything matching that right now — try browsing our full menu?"
+- If asked about something outside food/ordering, politely redirect: "I'm just here for food! What are you craving?"
+- Never claim to place orders for the user. Tell them to add to cart and check out.`;
+
+const BRIEF_SYSTEM_PROMPT = `You are Cravely, FoodHub's AI food assistant. Reply in 1-2 short, friendly sentences. Plain text only — no markdown, no tags. Emojis are fine (use sparingly). If asked what you do: say you help find meals matching their cravings on FoodHub.`;
+
+const TRIVIAL_PATTERNS = [
+  /^(hi|hello|hey|yo|hola|greetings|thanks|thank you|ok|okay|cool|nice|bye|goodbye)\b/i,
+  /^how are you/i,
+  /^what can you do/i,
+  /^who are you/i,
+];
 
 function isConfigured(value?: string) {
   return !!value && value.length > 12 && !value.includes("YOUR_");
@@ -52,6 +74,10 @@ function validateCitations(text: string, allowedIds: string[]) {
   });
 
   return { content: cleaned.trim(), citations: Array.from(citations) };
+}
+
+export function sanitizeChunk(text: string): string {
+  return text.replace(/<\/?[a-z][^>]*>/gi, "");
 }
 
 function localGroundedResponse(message: string, meals: CitationMeal[]) {
@@ -125,15 +151,29 @@ export class CravelyService {
 
   static async chat(sessionId: string, message: string, userId?: string): Promise<ChatResult> {
     const startedAt = Date.now();
-    const contextMeals = await this.getContextMeals(message);
-    const history = await prisma.chatMessage.findMany({
-      where: { sessionId },
-      orderBy: { createdAt: "asc" },
-      take: 10,
-    });
+    const isTrivial = TRIVIAL_PATTERNS.some(re => re.test(message.trim()));
 
-    const context = JSON.stringify(contextMeals, null, 2);
-    const prompt = `${SYSTEM_PROMPT}
+    let prompt: string;
+    let contextMeals: CitationMeal[] = [];
+
+    if (isTrivial) {
+      prompt = `${BRIEF_SYSTEM_PROMPT}\n\nUser: ${message}`;
+    } else {
+      const [meals, history] = await Promise.all([
+        this.getContextMeals(message),
+        prisma.chatMessage.findMany({
+          where: { sessionId },
+          orderBy: { createdAt: "asc" },
+          take: 8,
+        }),
+      ]);
+      contextMeals = meals;
+
+      const context = meals.map(m => 
+        `- ${m.name} (${m.category}, ৳${m.price}, by ${m.provider}): ${m.description.slice(0, 100)}`
+      ).join("\n");
+
+      prompt = `${SYSTEM_PROMPT}
 
 <context>
 ${context}
@@ -146,6 +186,7 @@ ${history.map((item) => `${item.role}: ${item.content}`).join("\n")}
 <user_message>
 ${message}
 </user_message>`;
+    }
 
     let provider: ChatResult["provider"] = "local";
     let model = "local-grounded";
@@ -221,5 +262,85 @@ ${message}
     return prisma.chatSession.create({
       data: userId ? { userId } : {},
     });
+  }
+
+  static async *chatStream(sessionId: string, message: string, userId?: string) {
+    const isTrivial = TRIVIAL_PATTERNS.some(re => re.test(message.trim()));
+    let contextMeals: CitationMeal[] = [];
+    let prompt: string;
+
+    if (isTrivial) {
+      prompt = `${BRIEF_SYSTEM_PROMPT}\n\nUser: ${message}`;
+    } else {
+      const [meals, history] = await Promise.all([
+        this.getContextMeals(message),
+        prisma.chatMessage.findMany({
+          where: { sessionId },
+          orderBy: { createdAt: "asc" },
+          take: 8,
+        }),
+      ]);
+      contextMeals = meals;
+      const context = meals.map(m => 
+        `- ${m.name} (${m.category}, ৳${m.price}, by ${m.provider}): ${m.description.slice(0, 100)}`
+      ).join("\n");
+
+      prompt = `${SYSTEM_PROMPT}
+
+<context>
+${context}
+</context>
+
+<chat_history>
+${history.map((item) => `${item.role}: ${item.content}`).join("\n")}
+</chat_history>
+
+<user_message>
+${message}
+</user_message>`;
+    }
+
+    const streamingResponse = await geminiModel.generateContentStream({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: {
+        maxOutputTokens: 400,
+        temperature: 0.4,
+        topP: 0.9,
+      },
+    });
+
+    let fullText = "";
+    for await (const chunk of streamingResponse.stream) {
+      const text = chunk.text();
+      const cleaned = sanitizeChunk(text);
+      if (cleaned) {
+        fullText += cleaned;
+        yield { type: "token", text: cleaned };
+      }
+    }
+
+    const validated = validateCitations(fullText, contextMeals.map(m => m.id));
+    
+    // Background tasks: Save to DB
+    Promise.all([
+      prisma.chatMessage.create({
+        data: { sessionId, role: "user", content: message },
+      }),
+      prisma.chatMessage.create({
+        data: {
+          sessionId,
+          role: "assistant",
+          content: validated.content,
+          citations: validated.citations as Prisma.InputJsonValue,
+        },
+      })
+    ]).catch(err => console.error("Failed to save chat to DB:", err));
+
+    yield { 
+      type: "done", 
+      sessionId,
+      citations: validated.citations,
+      fullText: validated.content
+    };
   }
 }

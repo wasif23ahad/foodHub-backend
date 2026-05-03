@@ -121,7 +121,7 @@ async function main() {
             userId: demoProviderUser.id,
             businessName: "Demo Provider Kitchen",
             description: "Demo provider account for reviewing FoodHub provider workflows.",
-            logo: "/uploads/providers/old-dhaka-kitchen.jpg",
+            logo: "",
             cuisineType: "Deshi",
             isActive: true,
             address: "Demo Delivery Center",

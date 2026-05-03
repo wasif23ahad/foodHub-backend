@@ -9,6 +9,7 @@ import uploadRoutes from "./upload.routes";
 import adminRoutes from "./admin.routes";
 import analyticsRoutes from "./analytics.routes";
 import aiRoutes from "./ai.routes";
+import paymentRoutes from "./payment.routes";
 
 const router: IRouter = Router();
 
@@ -21,6 +22,7 @@ router.use("/user", userRoutes);
 router.use("/provider", providerRoutes);
 router.use("/meals", mealRoutes);
 router.use("/orders", orderRoutes);
+router.use("/payment", paymentRoutes);
 router.use("/categories", categoryRoutes);
 router.use("/providers", publicProviderRoutes);
 router.use("/upload", uploadRoutes);

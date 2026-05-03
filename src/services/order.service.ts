@@ -211,7 +211,7 @@ export const createOrder = async (userId: string, data: CreateOrderInput) => {
             totalAmount,
             deliveryAddress: data.deliveryAddress,
             deliveryNotes: data.deliveryNotes ?? null,
-            status: "PLACED" as any,
+            status: "PLACED",
             orderItems: {
                 create: orderItemsData,
             },
